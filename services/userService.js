@@ -1,6 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ROLES } from "../constants/roles";
 import { createNotification } from "./notificationService";
+import { logAuditEntry } from "./auditService";
+import storage from "../utils/storage";
 
 const STORAGE_KEY = "linpal.users.v1";
 
@@ -14,8 +15,12 @@ const DEMO_USERS = [
     status: "active",
     profilePhoto: "",
     password: "password123",
+    mustChangePassword: false,
+    creationMethod: "seed",
+    createdBy: "",
     createdAt: "2026-05-01T08:00:00.000Z",
     updatedAt: "2026-05-01T08:00:00.000Z",
+    passwordChangedAt: "2026-05-01T08:00:00.000Z",
   },
   {
     uid: "demo-staff",
@@ -26,8 +31,12 @@ const DEMO_USERS = [
     status: "active",
     profilePhoto: "",
     password: "password123",
+    mustChangePassword: false,
+    creationMethod: "seed",
+    createdBy: "",
     createdAt: "2026-05-02T08:00:00.000Z",
     updatedAt: "2026-05-02T08:00:00.000Z",
+    passwordChangedAt: "2026-05-02T08:00:00.000Z",
   },
   {
     uid: "demo-realtor",
@@ -38,8 +47,12 @@ const DEMO_USERS = [
     status: "active",
     profilePhoto: "",
     password: "password123",
+    mustChangePassword: false,
+    creationMethod: "seed",
+    createdBy: "",
     createdAt: "2026-05-03T08:00:00.000Z",
     updatedAt: "2026-05-03T08:00:00.000Z",
+    passwordChangedAt: "2026-05-03T08:00:00.000Z",
   },
   {
     uid: "demo-stakeholder",
@@ -50,8 +63,12 @@ const DEMO_USERS = [
     status: "active",
     profilePhoto: "",
     password: "password123",
+    mustChangePassword: false,
+    creationMethod: "seed",
+    createdBy: "",
     createdAt: "2026-05-04T08:00:00.000Z",
     updatedAt: "2026-05-04T08:00:00.000Z",
+    passwordChangedAt: "2026-05-04T08:00:00.000Z",
   },
   {
     uid: "demo-admin",
@@ -62,8 +79,12 @@ const DEMO_USERS = [
     status: "active",
     profilePhoto: "",
     password: "password123",
+    mustChangePassword: false,
+    creationMethod: "seed",
+    createdBy: "",
     createdAt: "2026-05-05T08:00:00.000Z",
     updatedAt: "2026-05-05T08:00:00.000Z",
+    passwordChangedAt: "2026-05-05T08:00:00.000Z",
   },
 ];
 
@@ -89,8 +110,13 @@ function normalizeUser(user) {
     status: String(user.status || "active").trim(),
     profilePhoto: String(user.profilePhoto || "").trim(),
     password: String(user.password || ""),
+    mustChangePassword: Boolean(user.mustChangePassword),
+    creationMethod: String(user.creationMethod || "public").trim(),
+    createdBy: String(user.createdBy || "").trim(),
     createdAt: user.createdAt || new Date().toISOString(),
     updatedAt: user.updatedAt || new Date().toISOString(),
+    passwordChangedAt:
+      user.passwordChangedAt === undefined ? null : user.passwordChangedAt,
   };
 }
 
@@ -104,10 +130,10 @@ function stripSecret(user) {
 }
 
 async function ensureSeeded() {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
 
   if (!raw) {
-    await AsyncStorage.setItem(
+    await storage.setItem(
       STORAGE_KEY,
       JSON.stringify(DEMO_USERS.map(normalizeUser))
     );
@@ -116,7 +142,7 @@ async function ensureSeeded() {
 
 async function readUsers() {
   await ensureSeeded();
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
   const parsed = raw ? safeParse(raw) : [];
 
   if (!Array.isArray(parsed)) {
@@ -127,7 +153,7 @@ async function readUsers() {
 }
 
 async function writeUsers(users) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+  await storage.setItem(STORAGE_KEY, JSON.stringify(users));
 }
 
 async function getUsers() {
@@ -211,8 +237,12 @@ async function registerClient(fullNameOrPayload, emailMaybe, phoneMaybe, passwor
     status: "active",
     profilePhoto: "",
     password: payload.password,
+    mustChangePassword: false,
+    creationMethod: "public",
+    createdBy: "self",
     createdAt: now,
     updatedAt: now,
+    passwordChangedAt: now,
   });
 
   await writeUsers([user, ...users]);
@@ -290,6 +320,15 @@ async function updateUser(uid, updates = {}, options = {}) {
   nextUsers[index] = nextUser;
   await writeUsers(nextUsers);
 
+  if (nextUser.role !== users[index].role) {
+    await logAuditEntry(
+      "user_role_changed",
+      { targetUserId: nextUser.uid },
+      options?.actorUid || null,
+      { from: users[index].role, to: nextUser.role }
+    );
+  }
+
   if (nextUser.status !== users[index].status) {
     await createNotification({
       userId: nextUser.uid,
@@ -300,6 +339,12 @@ async function updateUser(uid, updates = {}, options = {}) {
       relatedType: "user",
       deduplicationKey: `account_status:${nextUser.uid}:${nextUser.status}`,
     });
+    await logAuditEntry(
+      "user_status_changed",
+      { targetUserId: nextUser.uid },
+      options?.actorUid || null,
+      { from: users[index].status, to: nextUser.status }
+    );
   }
 
   return stripSecret(nextUser);
@@ -308,6 +353,7 @@ async function updateUser(uid, updates = {}, options = {}) {
 async function deleteUser(uid) {
   const users = await readUsers();
   await writeUsers(users.filter((user) => user.uid !== uid));
+  await logAuditEntry("user_deleted", { targetUserId: uid }, null, {});
   return true;
 }
 
@@ -323,6 +369,74 @@ async function forgotPassword() {
   return true;
 }
 
+async function createUserRecord(payload = {}) {
+  const users = await readUsers();
+  const now = new Date().toISOString();
+  const user = normalizeUser({
+    uid: payload.uid || buildId(),
+    fullName: payload.fullName,
+    email: payload.email,
+    phone: payload.phone,
+    role: payload.role,
+    status: payload.status,
+    profilePhoto: payload.profilePhoto || "",
+    password: payload.password || "",
+    mustChangePassword: Boolean(payload.mustChangePassword),
+    creationMethod: payload.creationMethod || "direct",
+    createdBy: payload.createdBy || "",
+    createdAt: payload.createdAt || now,
+    updatedAt: payload.updatedAt || now,
+    passwordChangedAt:
+      payload.passwordChangedAt === undefined ? null : payload.passwordChangedAt,
+  });
+
+  await writeUsers([user, ...users.filter((item) => item.uid !== user.uid)]);
+  return stripSecret(user);
+}
+
+async function updateUserRecord(uid, updates = {}) {
+  const users = await readUsers();
+  const index = users.findIndex((user) => user.uid === uid);
+
+  if (index < 0) {
+    throw new Error("User not found.");
+  }
+
+  const nextUser = normalizeUser({
+    ...users[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextUsers = [...users];
+  nextUsers[index] = nextUser;
+  await writeUsers(nextUsers);
+  return stripSecret(nextUser);
+}
+
+async function setUserPassword(uid, password, extraUpdates = {}) {
+  const users = await readUsers();
+  const index = users.findIndex((user) => user.uid === uid);
+
+  if (index < 0) {
+    throw new Error("User not found.");
+  }
+
+  const nextUser = normalizeUser({
+    ...users[index],
+    password,
+    mustChangePassword: false,
+    passwordChangedAt: new Date().toISOString(),
+    ...extraUpdates,
+    updatedAt: new Date().toISOString(),
+  });
+
+  const nextUsers = [...users];
+  nextUsers[index] = nextUser;
+  await writeUsers(nextUsers);
+  return stripSecret(nextUser);
+}
+
 export {
   getUsers,
   getUserById,
@@ -335,4 +449,7 @@ export {
   getCurrentUserProfile,
   logout,
   forgotPassword,
+  createUserRecord,
+  updateUserRecord,
+  setUserPassword,
 };

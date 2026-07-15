@@ -36,6 +36,12 @@ export default function UserCard({ user, onPress }) {
                 label={user?.status || "-"}
                 variant={String(user?.status || "").toLowerCase() === "active" ? "success" : "subtle"}
               />
+              {user?.mustChangePassword ? (
+                <StatusBadge label="must change password" variant="warning" />
+              ) : null}
+              {user?.creationMethod ? (
+                <StatusBadge label={user.creationMethod} variant="subtle" />
+              ) : null}
             </View>
           </View>
         </View>
@@ -59,6 +65,12 @@ export default function UserCard({ user, onPress }) {
               label={user?.status || "-"}
               variant={String(user?.status || "").toLowerCase() === "active" ? "success" : "subtle"}
             />
+            {user?.mustChangePassword ? (
+              <StatusBadge label="must change password" variant="warning" />
+            ) : null}
+            {user?.creationMethod ? (
+              <StatusBadge label={user.creationMethod} variant="subtle" />
+            ) : null}
           </View>
         </View>
       </View>

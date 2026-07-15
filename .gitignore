@@ -8,3 +8,5 @@ node_modules
 
 expo-env.d.ts
 # @end expo-cli
+
+demo/generated-demo-data.json

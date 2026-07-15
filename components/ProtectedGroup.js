@@ -20,6 +20,10 @@ export default function ProtectedGroup({ role, children }) {
     return <Redirect href="/login" />;
   }
 
+  if (userProfile?.mustChangePassword) {
+    return <Redirect href="/change-temporary-password" />;
+  }
+
   if (currentRole !== role) {
     return (
       <Redirect href={getDashboardRouteForRole(currentRole) ?? "/login"} />

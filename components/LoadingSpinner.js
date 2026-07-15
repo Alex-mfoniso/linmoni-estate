@@ -3,7 +3,7 @@ import COLORS from "../constants/colors";
 
 export default function LoadingSpinner({ label = "Loading..." }) {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessibilityRole="progressbar">
       <ActivityIndicator size="large" color={COLORS.primary} />
       <Text style={styles.label}>{label}</Text>
     </View>

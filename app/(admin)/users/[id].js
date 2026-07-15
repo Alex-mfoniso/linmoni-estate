@@ -179,6 +179,26 @@ export default function AdminUserDetailsScreen() {
 
       {summary}
 
+      <View style={styles.metaCard}>
+        <Text style={styles.sectionTitle}>Account metadata</Text>
+        <View style={styles.metaBlock}>
+          <Text style={styles.metaLabel}>Role</Text>
+          <Text style={styles.metaValue}>{String(user.role || "-").toUpperCase()}</Text>
+          <Text style={styles.metaLabel}>Status</Text>
+          <Text style={styles.metaValue}>{String(user.status || "-").toUpperCase()}</Text>
+          <Text style={styles.metaLabel}>Creation method</Text>
+          <Text style={styles.metaValue}>{user.creationMethod || "-"}</Text>
+          <Text style={styles.metaLabel}>Must change password</Text>
+          <Text style={styles.metaValue}>{user.mustChangePassword ? "Yes" : "No"}</Text>
+          <Text style={styles.metaLabel}>Created by</Text>
+          <Text style={styles.metaValue}>{user.createdBy || "-"}</Text>
+          <Text style={styles.metaLabel}>Password changed at</Text>
+          <Text style={styles.metaValue}>
+            {user.passwordChangedAt ? new Date(user.passwordChangedAt).toLocaleString("en-NG") : "-"}
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.formCard}>
         <Text style={styles.sectionTitle}>Edit user</Text>
 
@@ -310,6 +330,14 @@ const styles = StyleSheet.create({
     padding: 18,
     gap: 12,
   },
+  metaCard: {
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 18,
+    gap: 10,
+  },
   sectionTitle: {
     color: COLORS.text,
     fontSize: 16,
@@ -363,8 +391,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   metaBlock: {
-    gap: 6,
-    marginTop: 4,
+    gap: 2,
   },
   metaLabel: {
     color: COLORS.secondary,

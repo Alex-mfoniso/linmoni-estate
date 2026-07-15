@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ROLES } from "../constants/roles";
 import { getUserById } from "./userService";
 import { createNotification } from "./notificationService";
+import storage from "../utils/storage";
 
 const CONVERSATIONS_KEY = "linpal.conversations.v1";
 const MESSAGES_KEY = "linpal.messages.v1";
@@ -86,7 +86,7 @@ function buildConversationKey(participantIds, propertyId = "") {
 }
 
 async function readConversations() {
-  const raw = await AsyncStorage.getItem(CONVERSATIONS_KEY);
+  const raw = await storage.getItem(CONVERSATIONS_KEY);
   const parsed = raw ? safeParse(raw) : [];
 
   if (!Array.isArray(parsed)) {
@@ -97,11 +97,11 @@ async function readConversations() {
 }
 
 async function writeConversations(conversations) {
-  await AsyncStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+  await storage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
 }
 
 async function readMessages() {
-  const raw = await AsyncStorage.getItem(MESSAGES_KEY);
+  const raw = await storage.getItem(MESSAGES_KEY);
   const parsed = raw ? safeParse(raw) : [];
 
   if (!Array.isArray(parsed)) {
@@ -112,7 +112,7 @@ async function readMessages() {
 }
 
 async function writeMessages(messages) {
-  await AsyncStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+  await storage.setItem(MESSAGES_KEY, JSON.stringify(messages));
 }
 
 function getConversationPartner(conversation, userId) {

@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import COLORS from "../constants/colors";
 import PrimaryButton from "./PrimaryButton";
 
@@ -10,8 +11,8 @@ export default function ErrorState({
 }) {
   return (
     <View style={styles.card}>
-      <View style={styles.iconWrap}>
-        <Text style={styles.icon}>!</Text>
+      <View style={styles.iconWrap} accessibilityRole="image" accessibilityLabel={title}>
+        <Ionicons name="alert-circle-outline" size={28} color={COLORS.error} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}
@@ -44,11 +45,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(214, 69, 69, 0.12)",
-  },
-  icon: {
-    color: COLORS.error,
-    fontSize: 26,
-    fontWeight: "900",
   },
   title: {
     color: COLORS.text,

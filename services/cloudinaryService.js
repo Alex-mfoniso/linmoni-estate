@@ -1,3 +1,5 @@
+import { getFriendlyErrorMessage } from "../utils/errorMessages";
+
 const CLOUD_NAME = String(process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || "").trim();
 const UPLOAD_PRESET = String(process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "").trim();
 const MAX_IMAGE_SIZE_BYTES = 12 * 1024 * 1024;
@@ -118,10 +120,15 @@ export async function uploadImage(asset, options = {}) {
     formData.append("folder", options.folder);
   }
 
-  const response = await fetch(buildUploadUrl(), {
-    method: "POST",
-    body: formData,
-  });
+  let response;
+  try {
+    response = await fetch(buildUploadUrl(), {
+      method: "POST",
+      body: formData,
+    });
+  } catch (error) {
+    throw new Error(getFriendlyErrorMessage(error, "Image upload failed. Please try again."));
+  }
 
   const payload = await response.json().catch(() => null);
 

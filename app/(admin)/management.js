@@ -16,6 +16,18 @@ export default function AdminManagementScreen() {
           title: "Platform",
           items: [
             {
+              title: "Create User",
+              description: "Add an internal account or send an invitation.",
+              icon: "person-add-outline",
+              route: "/(admin)/users/create",
+            },
+            {
+              title: "Invitations",
+              description: "Review pending and accepted invitations.",
+              icon: "mail-outline",
+              route: "/(admin)/invitations",
+            },
+            {
               title: "Users",
               description: "Review and manage user accounts.",
               icon: "people-outline",

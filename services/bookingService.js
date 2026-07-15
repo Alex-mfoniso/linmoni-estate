@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createNotification } from "./notificationService";
 import { ROLES } from "../constants/roles";
 import { getUsers } from "./userService";
+import storage from "../utils/storage";
 
 const STORAGE_KEY = "linpal.bookings.v1";
 
@@ -69,10 +69,10 @@ function normalizeBooking(booking) {
 }
 
 async function ensureSeeded() {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
 
   if (!raw) {
-    await AsyncStorage.setItem(
+    await storage.setItem(
       STORAGE_KEY,
       JSON.stringify(DEFAULT_BOOKINGS.map(normalizeBooking))
     );
@@ -81,7 +81,7 @@ async function ensureSeeded() {
 
 async function readBookings() {
   await ensureSeeded();
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
   const parsed = raw ? safeParse(raw) : [];
 
   if (!Array.isArray(parsed)) {
@@ -92,7 +92,7 @@ async function readBookings() {
 }
 
 async function writeBookings(bookings) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+  await storage.setItem(STORAGE_KEY, JSON.stringify(bookings));
 }
 
 function matchesSearch(booking, searchText) {

@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import COLORS from "../constants/colors";
 import PrimaryButton from "./PrimaryButton";
 
@@ -10,8 +11,8 @@ export default function EmptyState({
 }) {
   return (
     <View style={styles.container}>
-      <View style={styles.iconWrap}>
-        <Text style={styles.icon}>•</Text>
+      <View style={styles.iconWrap} accessibilityRole="image" accessibilityLabel={title}>
+        <Ionicons name="folder-open-outline" size={28} color={COLORS.primary} />
       </View>
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}
@@ -45,11 +46,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.softPrimary,
-  },
-  icon: {
-    color: COLORS.primary,
-    fontSize: 30,
-    fontWeight: "900",
   },
   title: {
     color: COLORS.text,

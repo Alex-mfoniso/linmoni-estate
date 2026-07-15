@@ -42,6 +42,8 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
+    "seed:demo": "node ./scripts/seed-demo-data.js",
+    "cleanup:demo": "node ./scripts/cleanup-demo-data.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

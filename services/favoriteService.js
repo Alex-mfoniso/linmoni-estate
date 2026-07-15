@@ -1,5 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ROLES } from "../constants/roles";
+import storage from "../utils/storage";
 
 const STORAGE_KEY = "linpal.favorites.v1";
 
@@ -29,7 +29,7 @@ function normalizeFavorite(favorite) {
 }
 
 async function readFavorites() {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
   const parsed = raw ? safeParse(raw) : [];
 
   if (!Array.isArray(parsed)) {
@@ -40,7 +40,7 @@ async function readFavorites() {
 }
 
 async function writeFavorites(favorites) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(favorites));
+  await storage.setItem(STORAGE_KEY, JSON.stringify(favorites));
 }
 
 function assertClientRole(userRole) {

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import AppHeader from "../../components/AppHeader";
 import EmptyState from "../../components/EmptyState";
-import LoadingSpinner from "../../components/LoadingSpinner";
 import ScreenContainer from "../../components/ScreenContainer";
+import PrimaryButton from "../../components/PrimaryButton";
+import SkeletonList from "../../components/SkeletonList";
 import UserCard from "../../components/UserCard";
 import COLORS from "../../constants/colors";
 import { useAuth } from "../../contexts/AuthContext";
@@ -93,7 +94,21 @@ export default function AdminUsersScreen() {
         />
       </View>
 
-      {loading ? <LoadingSpinner label="Loading users..." /> : null}
+      <View style={styles.actionRow}>
+        <PrimaryButton
+          title="Create User"
+          onPress={() => router.push("/(admin)/users/create")}
+          containerStyle={styles.flexButton}
+        />
+        <PrimaryButton
+          title="Invitations"
+          onPress={() => router.push("/(admin)/invitations")}
+          variant="secondary"
+          containerStyle={styles.flexButton}
+        />
+      </View>
+
+      {loading ? <SkeletonList count={4} /> : null}
 
       {!loading && error ? (
         <EmptyState
@@ -133,6 +148,15 @@ const styles = StyleSheet.create({
   },
   searchWrap: {
     gap: 8,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  flexButton: {
+    flex: 1,
+    minWidth: 140,
   },
   sectionLabel: {
     color: COLORS.text,

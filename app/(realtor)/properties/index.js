@@ -9,6 +9,7 @@ import PropertyCard from "../../../components/PropertyCard";
 import ScreenContainer from "../../../components/ScreenContainer";
 import AppHeader from "../../../components/AppHeader";
 import COLORS from "../../../constants/colors";
+import { SHADOWS } from "../../../constants/theme";
 import { useAuth } from "../../../contexts/AuthContext";
 import { deleteProperty, getProperties } from "../../../services/propertyService";
 
@@ -257,13 +258,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderWidth: 1,
     borderColor: COLORS.primary,
-    ...{
-      shadowColor: "#000",
-      shadowOpacity: 0.16,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 4,
-    },
+    ...SHADOWS.raised,
   },
   fabPressed: {
     transform: [{ scale: 0.96 }],

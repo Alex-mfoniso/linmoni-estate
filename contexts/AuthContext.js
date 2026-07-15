@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getDashboardRouteForRole } from "../utils/authRoutes";
+import storage from "../utils/storage";
 import {
-  authenticateUser,
+  login as authenticateUser,
   forgotPassword as forgotPasswordRequest,
   getCurrentUserProfile,
   registerClient,
@@ -22,25 +23,15 @@ function safeParse(value) {
 }
 
 function readStoredSession() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(MOCK_SESSION_KEY);
-  return raw ? safeParse(raw) : null;
+  return storage.getItem(MOCK_SESSION_KEY).then((raw) => (raw ? safeParse(raw) : null));
 }
 
 function writeStoredSession(session) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   if (!session) {
-    window.localStorage.removeItem(MOCK_SESSION_KEY);
-    return;
+    return storage.removeItem(MOCK_SESSION_KEY);
   }
 
-  window.localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(session));
+  return storage.setItem(MOCK_SESSION_KEY, JSON.stringify(session));
 }
 
 export function AuthProvider({ children }) {
@@ -49,20 +40,32 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const session = readStoredSession();
+    let active = true;
 
-    if (session) {
-      setCurrentUser(session.currentUser ?? null);
-      setUserProfile(session.userProfile ?? null);
-    }
+    void (async () => {
+      const session = await readStoredSession();
 
-    setLoading(false);
+      if (!active) {
+        return;
+      }
+
+      if (session) {
+        setCurrentUser(session.currentUser ?? null);
+        setUserProfile(session.userProfile ?? null);
+      }
+
+      setLoading(false);
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   function persistSession(nextCurrentUser, nextUserProfile) {
     setCurrentUser(nextCurrentUser);
     setUserProfile(nextUserProfile);
-    writeStoredSession({
+    void writeStoredSession({
       currentUser: nextCurrentUser,
       userProfile: nextUserProfile,
     });

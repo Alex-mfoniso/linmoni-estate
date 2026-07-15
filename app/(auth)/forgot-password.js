@@ -9,6 +9,7 @@ import FormField from "../../components/FormField";
 import PrimaryButton from "../../components/PrimaryButton";
 import COLORS from "../../constants/colors";
 import { useAuth } from "../../contexts/AuthContext";
+import { getFriendlyErrorMessage } from "../../utils/errorMessages";
 
 const schema = yup.object({
   email: yup
@@ -41,14 +42,14 @@ export default function ForgotPasswordScreen() {
       await forgotPassword(values.email);
       setSuccessMessage("If the account exists, a password reset email was sent.");
     } catch (error) {
-      setFormError(error.message || "Unable to request a reset right now.");
+      setFormError(getFriendlyErrorMessage(error, "Unable to request a reset right now."));
     }
   }
 
   return (
     <AuthShell
       title="Reset password"
-      subtitle="We’ll send a secure link to your inbox."
+      subtitle="We'll send a secure link to your inbox."
       footer={
         <View style={styles.footerRow}>
           <Text style={styles.footerText}>Remember your password?</Text>

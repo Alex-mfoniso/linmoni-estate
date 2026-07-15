@@ -1,63 +1,73 @@
 import { View, StyleSheet } from "react-native";
-import { useRouter } from "expo-router";
 import ScreenContainer from "./ScreenContainer";
-import AppHeader from "./AppHeader";
-import StatCard from "./StatCard";
-import DashboardCard from "./DashboardCard";
-import EmptyState from "./EmptyState";
-import SectionHeader from "./SectionHeader";
+import DashboardHeader from "./DashboardHeader";
+import DashboardStatsGrid from "./DashboardStatsGrid";
+import DashboardSection from "./DashboardSection";
+import QuickActionGrid from "./QuickActionGrid";
+import ActivityTimeline from "./ActivityTimeline";
+import HorizontalCardList from "./HorizontalCardList";
+import InsightCard from "./InsightCard";
+import RecentItemsList from "./RecentItemsList";
+import UpcomingCard from "./UpcomingCard";
+import EmptyDashboard from "./EmptyDashboard";
+
+function renderSection(section) {
+  switch (section.type) {
+    case "timeline":
+      return <ActivityTimeline items={section.items} />;
+    case "grid":
+      return <QuickActionGrid items={section.items} />;
+    case "horizontal":
+      return (
+        <HorizontalCardList
+          items={section.items}
+          renderItem={(item) => <InsightCard {...item} />}
+        />
+      );
+    case "list":
+      return <RecentItemsList items={section.items} />;
+    case "upcoming":
+      return <UpcomingCard {...section.item} />;
+    case "insight":
+      return <InsightCard {...section.item} />;
+    case "empty":
+      return <EmptyDashboard title={section.title} description={section.description} />;
+    default:
+      return <View />;
+  }
+}
 
 export default function DashboardScreen({
   userName,
   roleLabel,
   title,
   subtitle,
-  notificationCount = 0,
-  onNotificationPress,
   stats = [],
-  cards = [],
+  sections = [],
 }) {
-  const router = useRouter();
-
   return (
     <ScreenContainer contentContainerStyle={styles.container}>
-      <AppHeader
+      <DashboardHeader
         title={title}
         subtitle={subtitle}
         userName={userName}
-        role={roleLabel}
-        notificationCount={notificationCount}
-        onNotificationPress={onNotificationPress}
+        roleLabel={roleLabel}
       />
 
-      <SectionHeader title="Overview" subtitle="A quick read on your account." />
+      <DashboardStatsGrid stats={stats} />
 
-      <View style={styles.statsGrid}>
-        {stats.map((item) => (
-          <StatCard key={item.label} {...item} />
+      <View style={styles.sections}>
+        {sections.map((section) => (
+          <DashboardSection
+            key={section.key || section.title}
+            title={section.title}
+            subtitle={section.subtitle}
+            actionLabel={section.actionLabel}
+            onAction={section.onAction}
+          >
+            {renderSection(section)}
+          </DashboardSection>
         ))}
-      </View>
-
-      <SectionHeader title="Quick actions" subtitle="Jump straight into the most useful areas." />
-
-      <View style={styles.cardsGrid}>
-        {cards.length > 0 ? (
-          cards.map((item) => (
-            <DashboardCard
-              key={item.title}
-              {...item}
-              onPress={
-                item.onPress ||
-                (item.route ? () => router.push(item.route) : undefined)
-              }
-            />
-          ))
-        ) : (
-          <EmptyState
-            title="Nothing to show yet"
-            description="This area will fill in as new features are added."
-          />
-        )}
       </View>
     </ScreenContainer>
   );
@@ -70,12 +80,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 16,
   },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  cardsGrid: {
-    gap: 12,
+  sections: {
+    gap: 20,
   },
 });

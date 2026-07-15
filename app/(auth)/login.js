@@ -10,7 +10,8 @@ import FormField from "../../components/FormField";
 import PrimaryButton from "../../components/PrimaryButton";
 import COLORS from "../../constants/colors";
 import { useAuth } from "../../contexts/AuthContext";
-import { getDashboardRouteForRole } from "../../utils/authRoutes";
+import { getPostLoginRoute } from "../../utils/authRoutes";
+import { getFriendlyErrorMessage } from "../../utils/errorMessages";
 
 const schema = yup.object({
   email: yup
@@ -46,10 +47,10 @@ export default function LoginScreen() {
 
     try {
       const { profile } = await login(values);
-      const destination = getDashboardRouteForRole(profile?.role) ?? "/login";
+      const destination = getPostLoginRoute(profile);
       router.replace(destination);
     } catch (error) {
-      setFormError(error.message || "Unable to sign in right now.");
+      setFormError(getFriendlyErrorMessage(error, "Unable to sign in right now."));
     }
   }
 

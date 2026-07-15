@@ -1,9 +1,9 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { normalizeCloudinaryImage } from "../utils/propertyMedia";
 import { createNotification } from "./notificationService";
 import { getUsers } from "./userService";
 import { ROLES } from "../constants/roles";
 import { getPropertyFavorites } from "./favoriteService";
+import storage from "../utils/storage";
 
 const STORAGE_KEY = "linpal.properties.v2";
 
@@ -159,10 +159,10 @@ function normalizeProperty(property) {
 }
 
 async function ensureSeeded() {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
 
   if (!raw) {
-    await AsyncStorage.setItem(
+    await storage.setItem(
       STORAGE_KEY,
       JSON.stringify(DEFAULT_PROPERTIES.map(normalizeProperty))
     );
@@ -171,7 +171,7 @@ async function ensureSeeded() {
 
 async function readProperties() {
   await ensureSeeded();
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
   const parsed = raw ? safeParse(raw) : [];
 
   if (!Array.isArray(parsed)) {
@@ -182,7 +182,7 @@ async function readProperties() {
 }
 
 async function writeProperties(properties) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
+  await storage.setItem(STORAGE_KEY, JSON.stringify(properties));
 }
 
 function matchesSearch(property, searchText) {

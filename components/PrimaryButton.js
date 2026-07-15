@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import COLORS from "../constants/colors";
+import ButtonLoader from "./ButtonLoader";
 
 export default function PrimaryButton({
   title,
@@ -31,9 +32,7 @@ export default function PrimaryButton({
     >
       <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator
-            color={isSecondary || isGhost ? COLORS.primary : COLORS.white}
-          />
+          <ButtonLoader color={isSecondary || isGhost ? COLORS.primary : COLORS.white} />
         ) : null}
         <Text
           style={[

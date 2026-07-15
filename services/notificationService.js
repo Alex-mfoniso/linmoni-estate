@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import storage from "../utils/storage";
 
 const STORAGE_KEY = "linpal.notifications.v1";
 
@@ -34,7 +34,7 @@ function normalizeNotification(notification) {
 }
 
 async function readNotifications() {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+  const raw = await storage.getItem(STORAGE_KEY);
   const parsed = raw ? safeParse(raw) : [];
 
   if (!Array.isArray(parsed)) {
@@ -45,7 +45,7 @@ async function readNotifications() {
 }
 
 async function writeNotifications(notifications) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+  await storage.setItem(STORAGE_KEY, JSON.stringify(notifications));
 }
 
 function sortLatest(left, right) {
