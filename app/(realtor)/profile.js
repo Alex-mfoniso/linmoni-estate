@@ -32,8 +32,8 @@ export default function RealtorProfileScreen() {
       setLoading(true);
       setError("");
       const res = await realtorApi.getProfile();
-      if (res && res.success && res.data?.user) {
-        const user = res.data.user;
+      if (res && res.success && res.data) {
+        const user = res.data;
         setProfile(user);
         setBio(user.bio || "");
         setAgency(user.agency || "");
@@ -73,7 +73,7 @@ export default function RealtorProfileScreen() {
       const res = await realtorApi.updateProfile(payload);
       if (res && res.success) {
         Alert.alert("Success", "Your profile has been saved successfully.");
-        setProfile(res.data.user);
+        setProfile(res.data);
       } else {
         throw new Error("Profile update failed.");
       }

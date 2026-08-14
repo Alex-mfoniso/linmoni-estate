@@ -25,6 +25,49 @@ export function cancelAuthenticatedRequests() {
   activeControllers.clear();
 }
 
+function makeDualEnvelope(payload) {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+  const data = payload.data;
+  if (data && (typeof data === "object" || typeof data === "function")) {
+    try {
+      if (!("success" in data)) {
+        Object.defineProperty(data, "success", {
+          get() { return payload.success; },
+          configurable: true,
+          enumerable: false
+        });
+      }
+      if (!("message" in data)) {
+        Object.defineProperty(data, "message", {
+          get() { return payload.message; },
+          configurable: true,
+          enumerable: false
+        });
+      }
+      if (!("code" in data)) {
+        Object.defineProperty(data, "code", {
+          get() { return payload.code; },
+          configurable: true,
+          enumerable: false
+        });
+      }
+      if (!("data" in data)) {
+        Object.defineProperty(data, "data", {
+          get() { return data; },
+          configurable: true,
+          enumerable: false
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to define dual envelope properties on payload.data:", e);
+    }
+    return data;
+  }
+  return payload;
+}
+
 /**
  * Robust API helper targeting LINPAL native endpoints.
  */
@@ -116,7 +159,7 @@ export async function apiRequest(path, options = {}) {
       );
     }
 
-    return payload;
+    return makeDualEnvelope(payload);
   } catch (error) {
     if (error instanceof ApiClientError) {
       throw error;
