@@ -337,19 +337,22 @@ export default function AdminManagementScreen() {
     try {
       const payload = {
         role: onboardRole,
-        fullName: onboardFullName,
-        email: onboardEmail,
-        phone: onboardPhone,
+        fullName: onboardFullName.trim(),
+        email: onboardEmail.trim().toLowerCase(),
         password: onboardPassword
       };
 
+      if (onboardPhone && onboardPhone.trim()) {
+        payload.phone = onboardPhone.trim();
+      }
+
       if (onboardRole === "realtor") {
-        payload.agency = onboardAgency;
+        if (onboardAgency && onboardAgency.trim()) payload.agency = onboardAgency.trim();
         payload.specialties = onboardSpecialties ? onboardSpecialties.split(",").map(s => s.trim()).filter(Boolean) : [];
         payload.serviceAreas = onboardServiceAreas ? onboardServiceAreas.split(",").map(s => s.trim()).filter(Boolean) : [];
       } else if (onboardRole === "staff") {
-        payload.department = onboardDepartment;
-        payload.position = onboardPosition;
+        if (onboardDepartment && onboardDepartment.trim()) payload.department = onboardDepartment.trim();
+        if (onboardPosition && onboardPosition.trim()) payload.position = onboardPosition.trim();
       }
 
       const res = await adminApi.createStakeholder(payload);
