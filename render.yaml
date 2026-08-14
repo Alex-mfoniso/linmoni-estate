@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: linpal-api
+    env: node
+    plan: free # Can be updated to starter/pro as needed
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: development # Using development allows wildcard CORS '*' for ease of initial testing. Change to 'production' for full security later.
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        placeholder: "mongodb+srv://<username>:<password>@cluster.mongodb.net/linpal?retryWrites=true&w=majority"
+      - key: CLIENT_ORIGINS
+        value: "*"
+      - key: LOG_LEVEL
+        value: info
+      - key: JWT_ACCESS_SECRET
+        generateValue: true # Securely auto-generates a unique key on Render
+      - key: JWT_REFRESH_SECRET
+        generateValue: true # Securely auto-generates a unique key on Render
