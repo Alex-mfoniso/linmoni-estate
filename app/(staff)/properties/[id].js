@@ -217,7 +217,7 @@ export default function StaffPropertyVerifyDetailScreen() {
             </View>
             <Switch
               value={pricingComplete}
-              onValueChange={pricingComplete}
+              onValueChange={setPricingComplete}
               trackColor={{ true: COLORS.primary }}
               disabled // Locked as validated unless other flows request it
             />
