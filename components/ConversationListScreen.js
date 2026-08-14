@@ -9,6 +9,7 @@ import ScreenContainer from "./ScreenContainer";
 import { useAuth } from "../contexts/AuthContext";
 import { subscribeToConversations } from "../services/messageService";
 import { conversationApi } from "../services/conversationApi";
+import { realtorApi } from "../services/realtorApi";
 
 export default function ConversationListScreen({
   title,
@@ -19,6 +20,7 @@ export default function ConversationListScreen({
   emptyActionRoute,
   routePrefix,
   remote = false,
+  role,
 }) {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
@@ -36,11 +38,15 @@ export default function ConversationListScreen({
 
       try {
         if (remote) {
-          const result = await conversationApi.list({ page: 1, limit: 50 });
+          const isRealtor = role === "realtor" || routePrefix?.includes("realtor");
+          const result = isRealtor
+            ? await realtorApi.getConversations({ page: 1, limit: 50 })
+            : await conversationApi.list({ page: 1, limit: 50 });
+
           if (active) {
-            setConversations(result.items.map((item) => ({
+            setConversations((result.items || []).map((item) => ({
               ...item,
-              partnerProfile: item.realtor,
+              partnerProfile: isRealtor ? item.client : item.realtor,
               propertyTitle: item.property?.title,
               lastMessage: item.lastMessageText,
             })));
