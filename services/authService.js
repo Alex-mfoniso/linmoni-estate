@@ -10,11 +10,12 @@ import { saveAccessToken, saveRefreshToken, clearTokens, getRefreshToken } from 
  * Native Login verifying email + password.
  */
 export async function login({ email, password }) {
-  const result = await apiRequest("/api/v1/auth/login", {
+  const res = await apiRequest("/api/v1/auth/login", {
     method: "POST",
     authenticated: false,
     body: { email: email.trim().toLowerCase(), password }
   });
+  const result = res?.data;
 
   if (result?.accessToken) {
     await saveAccessToken(result.accessToken);
@@ -27,7 +28,7 @@ export async function login({ email, password }) {
  * Native Signup registering email + password.
  */
 export async function registerClient({ email, password, fullName, phone }) {
-  const result = await apiRequest("/api/v1/auth/register", {
+  const res = await apiRequest("/api/v1/auth/register", {
     method: "POST",
     authenticated: false,
     body: {
@@ -37,6 +38,7 @@ export async function registerClient({ email, password, fullName, phone }) {
       phone: phone.trim()
     }
   });
+  const result = res?.data;
 
   if (result?.accessToken) {
     await saveAccessToken(result.accessToken);

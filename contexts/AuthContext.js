@@ -82,10 +82,11 @@ export function AuthProvider({ children }) {
     setIsLoadingProfile(true);
     setAuthError(null);
     try {
-      const data = await getCurrentUserProfile();
+      const res = await getCurrentUserProfile();
+      const data = res?.data;
       if (version !== requestVersion.current) return null;
-      applyProfile(data.profile);
-      return data.profile;
+      applyProfile(data?.profile);
+      return data?.profile;
     } catch (error) {
       if (version !== requestVersion.current) return null;
       const resolution = RESOLUTION_BY_CODE[error.code] || "service_unavailable";
@@ -109,7 +110,8 @@ export function AuthProvider({ children }) {
       try {
         const accessToken = await getAccessToken();
         if (accessToken && mounted) {
-          const data = await getCurrentUserProfile();
+          const res = await getCurrentUserProfile();
+          const data = res?.data;
           if (mounted && data?.profile) {
             const u = {
               uid: data.profile.id || data.profile._id,
@@ -210,9 +212,10 @@ export function AuthProvider({ children }) {
   }
 
   async function refreshVerificationStatus() {
-    const data = await getCurrentUserProfile();
-    applyProfile(data.profile);
-    return data.profile;
+    const res = await getCurrentUserProfile();
+    const data = res?.data;
+    applyProfile(data?.profile);
+    return data?.profile;
   }
 
   async function refreshProfile() {
@@ -220,15 +223,17 @@ export function AuthProvider({ children }) {
   }
 
   async function updatePassword(newPassword) {
-    const data = await changePassword(newPassword);
-    applyProfile(data.profile);
-    return data.profile;
+    const res = await changePassword(newPassword);
+    const data = res?.data;
+    applyProfile(data?.profile);
+    return data?.profile;
   }
 
   async function updateProfile(updates) {
-    const data = await updateOwnProfile(updates);
-    applyProfile(data.profile);
-    return { user: firebaseUser, profile: data.profile };
+    const res = await updateOwnProfile(updates);
+    const data = res?.data;
+    applyProfile(data?.profile);
+    return { user: firebaseUser, profile: data?.profile };
   }
 
   function clearAuthError() {

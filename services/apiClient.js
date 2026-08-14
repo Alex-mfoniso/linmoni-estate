@@ -116,7 +116,7 @@ export async function apiRequest(path, options = {}) {
       );
     }
 
-    return payload?.data ?? payload;
+    return payload;
   } catch (error) {
     if (error instanceof ApiClientError) {
       throw error;
