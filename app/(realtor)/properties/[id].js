@@ -11,7 +11,7 @@ import PropertyCard from "../../../components/PropertyCard";
 import ScreenContainer from "../../../components/ScreenContainer";
 import COLORS from "../../../constants/colors";
 import { useAuth } from "../../../contexts/AuthContext";
-import { getPropertyById } from "../../../services/propertyService";
+import { realtorApi } from "../../../services/realtorApi";
 
 function formatDate(value) {
   if (!value) {
@@ -32,6 +32,7 @@ export default function RealtorPropertyDetailsScreen() {
   const params = useLocalSearchParams();
   const { currentUser, userProfile } = useAuth();
   const [property, setProperty] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [viewerIndex, setViewerIndex] = useState(0);
@@ -45,9 +46,12 @@ export default function RealtorPropertyDetailsScreen() {
       setError("");
 
       try {
-        const item = await getPropertyById(String(params.id || ""));
-        if (active) {
-          setProperty(item);
+        const res = await realtorApi.getProperty(String(params.id || ""));
+        if (active && res && res.success) {
+          setProperty(res.data.property);
+          setAnalytics(res.data.analytics);
+        } else if (active) {
+          setError("Failed to fetch property details.");
         }
       } catch (err) {
         if (active) {
@@ -116,6 +120,24 @@ export default function RealtorPropertyDetailsScreen() {
       />
 
       <View style={styles.infoCard}>
+        <Text style={styles.infoLabel}>Listing Performance & CRM</Text>
+        <View style={styles.analyticsRow}>
+          <View style={styles.analyticsCell}>
+            <Text style={styles.analyticsNum}>{analytics?.favouritesCount ?? 0}</Text>
+            <Text style={styles.analyticsLabel}>Saves</Text>
+          </View>
+          <View style={styles.analyticsCell}>
+            <Text style={styles.analyticsNum}>{analytics?.leadsCount ?? 0}</Text>
+            <Text style={styles.analyticsLabel}>Leads</Text>
+          </View>
+          <View style={styles.analyticsCell}>
+            <Text style={styles.analyticsNum}>{analytics?.bookingsCount ?? 0}</Text>
+            <Text style={styles.analyticsLabel}>Visits</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.infoCard}>
         <Text style={styles.infoLabel}>Listing information</Text>
         <Text style={styles.infoText}>{property.description}</Text>
         <Text style={styles.metaLine}>Created: {formatDate(property.createdAt)}</Text>
@@ -168,5 +190,32 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 13,
     fontWeight: "700",
+  },
+  analyticsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 4,
+    gap: 10,
+  },
+  analyticsCell: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  analyticsNum: {
+    color: COLORS.primary,
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  analyticsLabel: {
+    color: COLORS.mutedText,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginTop: 2,
   },
 });

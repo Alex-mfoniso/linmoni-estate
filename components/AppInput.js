@@ -15,6 +15,9 @@ export default function AppInput({
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.inputWrap, error ? styles.inputError : null]}>
         <TextInput
+          accessibilityLabel={inputProps.accessibilityLabel || label}
+          accessibilityHint={error || helperText}
+          aria-invalid={Boolean(error)}
           placeholderTextColor={COLORS.placeholder}
           style={[styles.input, inputStyle]}
           {...inputProps}
@@ -22,7 +25,11 @@ export default function AppInput({
         {rightAccessory ? <View style={styles.accessory}>{rightAccessory}</View> : null}
       </View>
       {helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text style={styles.error} accessibilityRole="alert" accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -33,14 +40,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "600",
     color: COLORS.text,
   },
   inputWrap: {
     minHeight: 54,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: COLORS.inputBackground,
     flexDirection: "row",
     alignItems: "center",

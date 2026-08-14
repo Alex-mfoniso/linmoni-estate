@@ -1,0 +1,5 @@
+import AuthShell from "../../components/AuthShell";
+import ErrorState from "../../components/ErrorState";
+import PrimaryButton from "../../components/PrimaryButton";
+import { useAuth } from "../../contexts/AuthContext";
+export default function ServiceUnavailableScreen() { const { authResolution, refreshProfile, logout } = useAuth(); const offline = authResolution === "offline"; const expired = authResolution === "session_expired"; return <AuthShell title={expired ? "Session expired" : offline ? "You appear to be offline" : "Service temporarily unavailable"} subtitle={expired ? "Sign out, then sign in again to continue." : "Your Firebase session remains safe."}><ErrorState title={expired ? "Please sign in again" : "Protected access is paused"} description={offline ? "Reconnect to the internet and retry." : "LINPAL could not confirm your server profile right now."} actionLabel={expired ? undefined : "Try again"} onAction={refreshProfile} /><PrimaryButton title="Sign out" variant="secondary" onPress={logout} /></AuthShell>; }

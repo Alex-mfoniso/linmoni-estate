@@ -17,8 +17,12 @@ export default function PrimaryButton({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       onPress={onPress}
       disabled={isDisabled}
+      hitSlop={4}
       style={({ pressed }) => [
         styles.button,
         isSecondary ? styles.secondary : null,
@@ -53,7 +57,7 @@ export default function PrimaryButton({
 const styles = StyleSheet.create({
   button: {
     minHeight: 52,
-    borderRadius: 18,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18,
@@ -79,7 +83,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   pressed: {
-    transform: [{ scale: 0.99 }],
+    transform: [{ scale: 0.98 }],
   },
   content: {
     flexDirection: "row",
@@ -89,6 +93,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: "700",
+    letterSpacing: 0.1,
   },
   primaryTitle: {
     color: COLORS.white,

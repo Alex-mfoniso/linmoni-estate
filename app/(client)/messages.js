@@ -12,6 +12,7 @@ export default function ClientMessagesScreen() {
       emptyActionRoute="/(client)/properties"
       routePrefix="/(client)"
       role={ROLES.CLIENT}
+      remote
     />
   );
 }

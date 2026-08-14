@@ -1,0 +1,9 @@
+import { z } from "zod";
+import { LISTING_TYPES, PROPERTY_TYPES } from "../constants/propertyStatuses.js";
+const mongoId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid identifier.");
+const pagination = { page: z.coerce.number().int().min(1).default(1), limit: z.coerce.number().int().min(1).max(50).default(20) };
+export const propertyListSchema = z.object({ body: z.object({}).strict(), params: z.object({}).passthrough(), query: z.object({ ...pagination, search: z.string().trim().max(100).optional(), propertyType: z.enum(PROPERTY_TYPES).optional(), listingType: z.enum(LISTING_TYPES).optional(), city: z.string().trim().max(80).optional(), state: z.string().trim().max(80).optional(), country: z.string().trim().max(80).optional(), minPrice: z.coerce.number().min(0).optional(), maxPrice: z.coerce.number().min(0).optional(), minBedrooms: z.coerce.number().int().min(0).max(50).optional(), minBathrooms: z.coerce.number().int().min(0).max(50).optional(), featured: z.string().transform((value) => value === "true").optional(), sort: z.enum(["newest", "price_low_to_high", "price_high_to_low", "most_relevant"]).default("newest") }).strict().refine((query) => query.minPrice == null || query.maxPrice == null || query.minPrice <= query.maxPrice, { message: "Minimum price cannot exceed maximum price.", path: ["maxPrice"] }) });
+export const propertyIdSchema = z.object({ body: z.object({}).strict(), params: z.object({ propertyId: mongoId }).strict(), query: z.object({}).passthrough() });
+export const limitSchema = z.object({ body: z.object({}).strict(), params: z.object({}).passthrough(), query: z.object({ limit: z.coerce.number().int().min(1).max(12).default(6) }).strict() });
+export const paginatedSchema = z.object({ body: z.object({}).strict(), params: z.object({}).passthrough(), query: z.object(pagination).strict() });
+export { mongoId, pagination };

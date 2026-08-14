@@ -9,8 +9,8 @@ import PrimaryButton from "../../../../components/PrimaryButton";
 import ScreenContainer from "../../../../components/ScreenContainer";
 import COLORS from "../../../../constants/colors";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { getPropertyById } from "../../../../services/propertyService";
-import { createBooking } from "../../../../services/bookingService";
+import { propertyApi } from "../../../../services/propertyApi";
+import { bookingApi } from "../../../../services/bookingApi";
 
 export default function ClientBookPropertyScreen() {
   const router = useRouter();
@@ -19,7 +19,8 @@ export default function ClientBookPropertyScreen() {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [formError, setFormError] = useState("");
   const [form, setForm] = useState({
     preferredDate: "",
     preferredTime: "",
@@ -31,16 +32,16 @@ export default function ClientBookPropertyScreen() {
 
     async function loadProperty() {
       setLoading(true);
-      setError("");
+      setLoadError("");
 
       try {
-        const item = await getPropertyById(String(params.id || ""));
+        const result = await propertyApi.get(String(params.id || ""));
         if (active) {
-          setProperty(item);
+          setProperty(result.property);
         }
       } catch (err) {
         if (active) {
-          setError(err?.message || "Could not load this property.");
+          setLoadError(err?.message || "Could not load this property.");
         }
       } finally {
         if (active) {
@@ -69,30 +70,30 @@ export default function ClientBookPropertyScreen() {
     }
 
     if (!form.preferredDate.trim() || !form.preferredTime.trim()) {
-      setError("Please choose a preferred date and time.");
+      setFormError("Please choose a preferred date and time.");
+      return;
+    }
+    const scheduledAt = new Date(`${form.preferredDate.trim()}T${form.preferredTime.trim()}:00+01:00`);
+    if (Number.isNaN(scheduledAt.getTime()) || scheduledAt <= new Date()) {
+      setFormError("Choose a valid future date and time in WAT.");
       return;
     }
 
     setSaving(true);
-    setError("");
+    setFormError("");
 
     try {
-      await createBooking({
+      await bookingApi.create({
         propertyId: property.id,
-        propertyTitle: property.title,
-        clientId: currentUser?.uid || "",
-        clientName: currentUser?.displayName || userProfile?.fullName || "Client",
-        clientEmail: currentUser?.email || userProfile?.email || "",
-        realtorId: property.createdBy || "",
-        preferredDate: form.preferredDate,
-        preferredTime: form.preferredTime,
+        scheduledAt: scheduledAt.toISOString(),
+        timezone: "Africa/Lagos",
         message: form.message,
       });
 
       Alert.alert("Booking requested", "Your inspection request has been submitted.");
       router.replace("/(client)/bookings");
     } catch (err) {
-      setError(err?.message || "Unable to create this booking.");
+      setFormError(err?.message || "Unable to create this booking.");
     } finally {
       setSaving(false);
     }
@@ -102,7 +103,7 @@ export default function ClientBookPropertyScreen() {
     return <LoadingSpinner label="Loading booking form..." />;
   }
 
-  if (error || !property) {
+  if (loadError || !property) {
     return (
       <ScreenContainer contentContainerStyle={styles.container}>
         <AppHeader
@@ -113,7 +114,7 @@ export default function ClientBookPropertyScreen() {
         />
         <EmptyState
           title="Could not load property"
-          description={error || "This listing may have been removed."}
+          description={loadError || "This listing may have been removed."}
           actionLabel="Back to listings"
           onAction={() => router.back()}
         />
@@ -133,7 +134,7 @@ export default function ClientBookPropertyScreen() {
       <View style={styles.summaryCard}>
         <Text style={styles.summaryLabel}>Property</Text>
         <Text style={styles.summaryTitle}>{property.title}</Text>
-        <Text style={styles.summaryText}>{property.address}</Text>
+        <Text style={styles.summaryText}>{property.location || [property.city, property.state].filter(Boolean).join(", ")}</Text>
       </View>
 
       <View style={styles.formCard}>
@@ -159,7 +160,7 @@ export default function ClientBookPropertyScreen() {
           inputStyle={styles.messageInput}
         />
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
 
         <PrimaryButton
           title="Submit booking"

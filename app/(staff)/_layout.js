@@ -14,23 +14,23 @@ export default function StaffLayout() {
     <ProtectedGroup role={ROLES.STAFF}>
       <RoleBasedTabBar
         initialRouteName="dashboard"
-        visibleRouteNames={["dashboard", "bookings", "messages", "more"]}
+        visibleRouteNames={["dashboard", "tasks", "messages", "profile"]}
       >
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: "Home",
+            title: "Dashboard",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" color={color} size={size} />
+              <Ionicons name="grid-outline" color={color} size={size} />
             ),
           }}
         />
         <Tabs.Screen
-          name="bookings"
+          name="tasks"
           options={{
-            title: "Bookings",
+            title: "Tasks",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="calendar-outline" color={color} size={size} />
+              <Ionicons name="checkbox-outline" color={color} size={size} />
             ),
           }}
         />
@@ -53,16 +53,12 @@ export default function StaffLayout() {
             ),
           }}
         />
+        {/* Secondary hidden routes */}
         <Tabs.Screen name="properties" options={{ tabBarButton: () => null }} />
-        <Tabs.Screen
-          name="more"
-          options={{
-            title: "More",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="ellipsis-horizontal-outline" color={color} size={size} />
-            ),
-          }}
-        />
+        <Tabs.Screen name="bookings" options={{ tabBarButton: () => null }} />
+        <Tabs.Screen name="issues" options={{ tabBarButton: () => null }} />
+        <Tabs.Screen name="more" options={{ tabBarButton: () => null }} />
+        <Tabs.Screen name="notifications" options={{ tabBarButton: () => null }} />
       </RoleBasedTabBar>
     </ProtectedGroup>
   );

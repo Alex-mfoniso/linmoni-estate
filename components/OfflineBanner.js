@@ -1,53 +1,61 @@
 import { StyleSheet, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import Animated, { SlideInUp, SlideOutUp } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import COLORS from "../constants/colors";
 import useNetworkStatus from "../hooks/useNetworkStatus";
+import useReducedMotion from "../hooks/useReducedMotion";
 
 export default function OfflineBanner() {
   const isOnline = useNetworkStatus();
+  const reduceMotion = useReducedMotion();
+  const insets = useSafeAreaInsets();
 
-  if (isOnline) {
-    return null;
-  }
+  if (isOnline) return null;
 
   return (
-    <View style={styles.banner} accessibilityRole="alert">
-      <View style={styles.left}>
-        <Ionicons name="cloud-offline-outline" size={18} color={COLORS.error} />
-        <Text style={styles.text}>You are offline. Some actions are disabled.</Text>
+    <Animated.View
+      entering={reduceMotion ? undefined : SlideInUp.duration(220)}
+      exiting={reduceMotion ? undefined : SlideOutUp.duration(180)}
+      style={[styles.banner, { top: Math.max(insets.top, 12) }]}
+      accessibilityRole="alert"
+      accessibilityLiveRegion="assertive"
+    >
+      <View style={styles.iconWrap}>
+        <Ionicons name="cloud-offline-outline" size={18} color={COLORS.warning} />
       </View>
-    </View>
+      <View style={styles.copy}>
+        <Text style={styles.title}>You’re offline</Text>
+        <Text style={styles.text}>Saved content is still available. New changes may not sync.</Text>
+      </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   banner: {
     position: "absolute",
-    top: 12,
-    left: 12,
-    right: 12,
-    zIndex: 50,
+    left: 16,
+    right: 16,
+    zIndex: 40,
     borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(214, 69, 69, 0.08)",
+    padding: 12,
+    backgroundColor: COLORS.warningSurface,
     borderWidth: 1,
-    borderColor: "rgba(214, 69, 69, 0.16)",
+    borderColor: "rgba(154, 106, 33, 0.28)",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 10,
   },
-  left: {
-    flex: 1,
-    flexDirection: "row",
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
+    backgroundColor: COLORS.surface,
   },
-  text: {
-    flex: 1,
-    color: COLORS.error,
-    fontSize: 13,
-    fontWeight: "700",
-  },
+  copy: { flex: 1 },
+  title: { color: COLORS.text, fontSize: 13, fontWeight: "700" },
+  text: { marginTop: 2, color: COLORS.mutedText, fontSize: 12, lineHeight: 17 },
 });

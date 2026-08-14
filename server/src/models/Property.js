@@ -1,0 +1,15 @@
+import mongoose from "mongoose";
+import { LISTING_TYPES, PROPERTY_STATUSES, PROPERTY_TYPES } from "../constants/propertyStatuses.js";
+const imageSchema = new mongoose.Schema({ publicId: { type: String, trim: true, default: "" }, url: { type: String, trim: true, required: true }, width: { type: Number, min: 1, default: null }, height: { type: Number, min: 1, default: null }, format: { type: String, trim: true, default: "" }, altText: { type: String, trim: true, maxlength: 180, default: "" }, isCover: { type: Boolean, default: false } }, { _id: false });
+const propertySchema = new mongoose.Schema({
+  title: { type: String, required: true, trim: true, minlength: 3, maxlength: 140 }, slug: { type: String, required: true, trim: true, lowercase: true, unique: true },
+  description: { type: String, required: true, trim: true, minlength: 20, maxlength: 5000 }, propertyType: { type: String, required: true, enum: PROPERTY_TYPES }, listingType: { type: String, required: true, enum: LISTING_TYPES },
+  price: { type: Number, required: true, min: 0 }, currency: { type: String, required: true, uppercase: true, trim: true, default: "NGN", minlength: 3, maxlength: 3 },
+  location: { type: String, trim: true, default: "" }, address: { type: String, trim: true, default: "", select: false }, city: { type: String, required: true, trim: true }, state: { type: String, required: true, trim: true }, country: { type: String, required: true, trim: true, default: "Nigeria" },
+  latitude: { type: Number, min: -90, max: 90, default: null, select: false }, longitude: { type: Number, min: -180, max: 180, default: null, select: false }, bedrooms: { type: Number, min: 0, default: 0 }, bathrooms: { type: Number, min: 0, default: 0 }, toilets: { type: Number, min: 0, default: 0 }, parkingSpaces: { type: Number, min: 0, default: 0 }, landSize: { type: Number, min: 0, default: null }, buildingSize: { type: Number, min: 0, default: null },
+  amenities: [{ type: String, trim: true, maxlength: 80 }], images: { type: [imageSchema], default: [] }, coverImage: { type: imageSchema, default: null }, status: { type: String, required: true, enum: PROPERTY_STATUSES, default: "draft" }, featured: { type: Boolean, default: false },
+  realtorId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, select: false }, approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null, select: false }, publishedAt: { type: Date, default: null }
+}, { timestamps: true, versionKey: false });
+propertySchema.index({ status: 1, publishedAt: -1 }); propertySchema.index({ city: 1, propertyType: 1, listingType: 1, price: 1 }); propertySchema.index({ title: "text", location: "text", city: "text", state: "text" });
+propertySchema.index({ realtorId: 1, status: 1 }); propertySchema.index({ realtorId: 1, createdAt: -1 });
+export const Property = mongoose.models.Property || mongoose.model("Property", propertySchema);

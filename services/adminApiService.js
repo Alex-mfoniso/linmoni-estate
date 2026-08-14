@@ -1,5 +1,4 @@
 import {
-  createDirectInternalUser,
   getInternalUsers,
   updateInternalUser,
   deactivateInternalUser,
@@ -7,8 +6,6 @@ import {
   changeTemporaryPassword,
 } from "./internalUserService";
 import {
-  acceptInvitation,
-  createInvitation,
   getInvitationById,
   getInvitations,
   resendInvitation,
@@ -25,13 +22,11 @@ function notConfigured(action) {
 }
 
 export async function createInternalUserDirect(payload, actorUid) {
-  if (!MOCK_MODE) return notConfigured("createInternalUserDirect");
-  return createDirectInternalUser(payload, actorUid);
+  return notConfigured("secure internal-user creation (deferred beyond Phase B)");
 }
 
 export async function createInvitationRequest(payload, actorUid) {
-  if (!MOCK_MODE) return notConfigured("createInvitationRequest");
-  return createInvitation(payload, actorUid);
+  return notConfigured("secure invitation creation (deferred beyond Phase B)");
 }
 
 export async function getInternalUserList() {
@@ -75,8 +70,7 @@ export async function validateInvitationRequestToken(token) {
 }
 
 export async function acceptInvitationRequest(token, password) {
-  if (!MOCK_MODE) return notConfigured("acceptInvitationRequest");
-  return acceptInvitation(token, password);
+  return notConfigured("secure invitation acceptance (deferred beyond Phase B)");
 }
 
 export async function resendInvitationRequest(invitationId, actorUid) {
@@ -88,4 +82,3 @@ export async function revokeInvitationRequest(invitationId, actorUid) {
   if (!MOCK_MODE) return notConfigured("revokeInvitationRequest");
   return revokeInvitation(invitationId, actorUid);
 }
-

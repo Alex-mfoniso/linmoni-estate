@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AppHeader from "../../../components/AppHeader";
@@ -7,284 +8,159 @@ import EmptyState from "../../../components/EmptyState";
 import FilterModal from "../../../components/FilterModal";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 import PropertyCard from "../../../components/PropertyCard";
-import ScreenContainer from "../../../components/ScreenContainer";
 import SearchBar from "../../../components/SearchBar";
 import SortBottomSheet from "../../../components/SortBottomSheet";
 import COLORS from "../../../constants/colors";
 import { useAuth } from "../../../contexts/AuthContext";
-import {
-  addFavorite,
-  getUserFavorites,
-  removeFavorite,
-} from "../../../services/favoriteService";
-import { getProperties } from "../../../services/propertyService";
-import { getPropertyCoverUri } from "../../../utils/propertyMedia";
+import { favouriteApi } from "../../../services/favouriteApi";
+import { propertyApi } from "../../../services/propertyApi";
 
-const DEFAULT_FILTERS = {
-  minPrice: "",
-  maxPrice: "",
-  bedrooms: "",
-  bathrooms: "",
-  status: "all",
-  propertyType: "all",
-};
-
-const PROPERTY_TYPES = [
-  "Apartment",
-  "Bungalow",
-  "Duplex",
-  "Land",
-  "Penthouse",
-  "Studio",
-  "Terrace",
-  "Townhouse",
+const DEFAULT_FILTERS = { minPrice: "", maxPrice: "", bedrooms: "", bathrooms: "", status: "all", propertyType: "all" };
+const PROPERTY_TYPES = ["Apartment", "Bungalow", "Duplex", "Detached", "Land", "Terrace", "Commercial", "Office", "Shop", "Warehouse"];
+const SORT_MAP = { newest: "newest", "price-asc": "price_low_to_high", "price-desc": "price_high_to_low", relevant: "most_relevant" };
+const CLIENT_SORT_OPTIONS = [
+  { label: "Newest", value: "newest" },
+  { label: "Lowest price", value: "price-asc" },
+  { label: "Highest price", value: "price-desc" },
+  { label: "Most relevant", value: "relevant" },
 ];
 
 export default function ClientPropertiesScreen() {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
   const [properties, setProperties] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sortBy, setSortBy] = useState("newest");
-  const [refreshTick, setRefreshTick] = useState(0);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [sortVisible, setSortVisible] = useState(false);
+  const requestRef = useRef(null);
 
   useEffect(() => {
-    let active = true;
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-    async function loadData() {
-      setLoading(true);
-      setError("");
-
-      try {
-        const [items, favorites] = await Promise.all([
-          getProperties({
-            search,
-            ...filters,
-            sortBy,
-          }),
-          getUserFavorites(currentUser?.uid),
-        ]);
-
-        if (active) {
-          setProperties(items);
-          setFavoriteIds(new Set(favorites.map((favorite) => favorite.propertyId)));
-        }
-      } catch (err) {
-        if (active) {
-          setError(err?.message || "Could not load properties.");
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadData();
-
-    return () => {
-      active = false;
+  function query(page) {
+    return {
+      page,
+      limit: 12,
+      search: debouncedSearch || undefined,
+      minPrice: filters.minPrice || undefined,
+      maxPrice: filters.maxPrice || undefined,
+      minBedrooms: filters.bedrooms || undefined,
+      minBathrooms: filters.bathrooms || undefined,
+      propertyType: filters.propertyType !== "all" ? filters.propertyType.toLowerCase() : undefined,
+      sort: SORT_MAP[sortBy] || "newest",
     };
-  }, [currentUser?.uid, search, filters, sortBy, refreshTick]);
+  }
 
-  async function handleFavoriteToggle(property) {
-    if (!currentUser?.uid || userProfile?.role !== "client") {
-      return;
-    }
-
+  async function load(page = 1, mode = "initial") {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    if (mode === "initial") setLoading(true);
+    if (mode === "more") setLoadingMore(true);
+    if (mode === "refresh") setRefreshing(true);
+    setError("");
     try {
-      const isSaved = favoriteIds.has(property.id);
-      if (isSaved) {
-        await removeFavorite(currentUser.uid, property.id);
-      } else {
-        await addFavorite({
-          userId: currentUser.uid,
-          userRole: userProfile?.role,
-          propertyId: property.id,
-          propertyTitle: property.title,
-          propertyImage: getPropertyCoverUri(property, {
-            width: 1200,
-            height: 900,
-            crop: "fill",
-          }),
-          propertyPrice: property.price,
-          propertyAddress: property.address,
-        });
-      }
-
-      setRefreshTick((value) => value + 1);
+      const [result, favourites] = await Promise.all([
+        propertyApi.list(query(page), { signal: controller.signal }),
+        page === 1 ? favouriteApi.list({ page: 1, limit: 50 }, { signal: controller.signal }) : Promise.resolve(null),
+      ]);
+      setProperties((current) => page === 1 ? result.items : [...current, ...result.items]);
+      setPagination(result.pagination);
+      if (favourites) setFavoriteIds(new Set(favourites.items.map((item) => item.property.id)));
     } catch (err) {
-      Alert.alert("Favorites", err?.message || "Unable to update favorites.");
+      if (err?.code !== "REQUEST_CANCELLED") setError(err?.message || "Could not load properties.");
+    } finally {
+      if (requestRef.current === controller) {
+        setLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
+      }
     }
   }
 
-  const filterCount = useMemo(() => {
-    let count = 0;
-    if (filters.minPrice) count += 1;
-    if (filters.maxPrice) count += 1;
-    if (filters.bedrooms) count += 1;
-    if (filters.bathrooms) count += 1;
-    if (filters.status && filters.status !== "all") count += 1;
-    if (filters.propertyType && filters.propertyType !== "all") count += 1;
-    return count;
-  }, [filters]);
+  useEffect(() => {
+    void load();
+    return () => requestRef.current?.abort();
+  }, [debouncedSearch, filters, sortBy]);
 
-  const emptyMessage = useMemo(() => {
-    if (search || filterCount > 0) {
-      return "Try a different search term or relax the filters.";
+  async function handleFavoriteToggle(property) {
+    const wasSaved = favoriteIds.has(property.id);
+    setFavoriteIds((current) => {
+      const next = new Set(current);
+      wasSaved ? next.delete(property.id) : next.add(property.id);
+      return next;
+    });
+    try {
+      await (wasSaved ? favouriteApi.remove(property.id) : favouriteApi.add(property.id));
+    } catch (err) {
+      setFavoriteIds((current) => {
+        const next = new Set(current);
+        wasSaved ? next.add(property.id) : next.delete(property.id);
+        return next;
+      });
+      Alert.alert("Saved properties", err?.message || "Unable to update this property.");
     }
+  }
 
-    return "Properties will appear here once they are added to the catalog.";
-  }, [search, filterCount]);
+  const filterCount = useMemo(() => ["minPrice", "maxPrice", "bedrooms", "bathrooms"].filter((key) => filters[key]).length + (filters.propertyType !== "all" ? 1 : 0), [filters]);
+  const header = (
+    <View style={styles.header}>
+      <AppHeader title="Find your next address" subtitle="Explore verified LINPAL listings and book an inspection." userName={currentUser?.displayName || userProfile?.fullName || "Client"} role="CLIENT" />
+      <View style={styles.searchRow}>
+        <View style={styles.searchWrap}><SearchBar value={search} onChangeText={setSearch} placeholder="Search homes and locations" onClear={() => setSearch("")} /></View>
+        <Pressable onPress={() => setFiltersVisible(true)} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Open property filters">
+          <Ionicons name="options-outline" size={19} color={COLORS.primary} />
+          {filterCount ? <View style={styles.badge}><Text style={styles.badgeText}>{filterCount}</Text></View> : null}
+        </Pressable>
+        <Pressable onPress={() => setSortVisible(true)} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Sort properties"><Ionicons name="swap-vertical-outline" size={19} color={COLORS.primary} /></Pressable>
+      </View>
+      <View style={styles.metaRow}><Text style={styles.metaText}>{pagination?.totalItems ?? properties.length} properties</Text><Text style={styles.metaText}>Sorted by {sortBy.replace("-", " ")}</Text></View>
+    </View>
+  );
 
   return (
-    <ScreenContainer contentContainerStyle={styles.container}>
-      <AppHeader
-        title="Property Catalog"
-        subtitle="Search listings, fine-tune filters, and open a property for details."
-        userName={currentUser?.displayName || userProfile?.fullName || "Client"}
-        role={(userProfile?.role || "client").toUpperCase()}
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <FlatList
+        data={properties}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <PropertyCard property={item} onView={() => router.push(`/(client)/properties/${item.id}`)} onFavoriteToggle={() => handleFavoriteToggle(item)} isFavorited={favoriteIds.has(item.id)} />}
+        ListHeaderComponent={header}
+        ListEmptyComponent={!loading ? <EmptyState title={error ? "We could not load properties" : "No properties found"} description={error || "Try a different search or relax the filters."} actionLabel={error ? "Try again" : undefined} onAction={error ? () => load() : undefined} /> : null}
+        ListFooterComponent={loading ? <LoadingSpinner label="Loading properties..." /> : loadingMore ? <LoadingSpinner label="Loading more..." /> : null}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(1, "refresh")} tintColor={COLORS.primary} />}
+        onEndReached={() => pagination?.hasNextPage && !loadingMore && void load(pagination.page + 1, "more")}
+        onEndReachedThreshold={0.4}
+        keyboardShouldPersistTaps="handled"
       />
-
-      <View style={styles.searchRow}>
-        <View style={styles.searchWrap}>
-          <SearchBar
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search title, address, or property type"
-            onClear={() => setSearch("")}
-          />
-        </View>
-        <Pressable onPress={() => setFiltersVisible(true)} style={styles.iconButton}>
-          <Ionicons name="options-outline" size={18} color={COLORS.primary} />
-          {filterCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{filterCount}</Text>
-            </View>
-          ) : null}
-        </Pressable>
-        <Pressable onPress={() => setSortVisible(true)} style={styles.iconButton}>
-          <Ionicons name="swap-vertical-outline" size={18} color={COLORS.primary} />
-        </Pressable>
-      </View>
-
-      <View style={styles.metaRow}>
-        <Text style={styles.metaText}>Sort: {sortBy.replace("-", " ")}</Text>
-        <Text style={styles.metaText}>{properties.length} results</Text>
-      </View>
-
-      {loading ? <LoadingSpinner label="Loading properties..." /> : null}
-
-      {!loading && error ? (
-        <EmptyState
-          title="We could not load properties"
-          description={error}
-          actionLabel="Try again"
-          onAction={() => setRefreshTick((value) => value + 1)}
-        />
-      ) : null}
-
-      {!loading && !error && properties.length === 0 ? (
-        <EmptyState title="No properties found" description={emptyMessage} />
-      ) : null}
-
-      {!loading && !error
-        ? properties.map((property) => (
-            <PropertyCard
-              key={property.id}
-              property={property}
-              onView={() => router.push(`/(client)/properties/${property.id}`)}
-              onFavoriteToggle={() => handleFavoriteToggle(property)}
-              isFavorited={favoriteIds.has(property.id)}
-            />
-          ))
-        : null}
-
-      <FilterModal
-        visible={filtersVisible}
-        value={filters}
-        onClose={() => setFiltersVisible(false)}
-        onApply={(nextFilters) => {
-          setFilters(nextFilters);
-          setFiltersVisible(false);
-        }}
-        onReset={() => {
-          setFilters(DEFAULT_FILTERS);
-          setFiltersVisible(false);
-        }}
-        propertyTypes={PROPERTY_TYPES}
-      />
-
-      <SortBottomSheet
-        visible={sortVisible}
-        value={sortBy}
-        onClose={() => setSortVisible(false)}
-        onSelect={(nextSort) => {
-          setSortBy(nextSort);
-          setSortVisible(false);
-        }}
-      />
-    </ScreenContainer>
+      <FilterModal visible={filtersVisible} value={filters} onClose={() => setFiltersVisible(false)} onApply={(value) => { setFilters(value); setFiltersVisible(false); }} onReset={() => { setFilters(DEFAULT_FILTERS); setFiltersVisible(false); }} propertyTypes={PROPERTY_TYPES} showStatus={false} />
+      <SortBottomSheet visible={sortVisible} value={sortBy} options={CLIENT_SORT_OPTIONS} onClose={() => setSortVisible(false)} onSelect={(value) => { setSortBy(value); setSortVisible(false); }} />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 28,
-    gap: 14,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  searchWrap: {
-    flex: 1,
-  },
-  iconButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  badge: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: {
-    color: COLORS.white,
-    fontSize: 10,
-    fontWeight: "900",
-  },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  metaText: {
-    color: COLORS.mutedText,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "capitalize",
-  },
+  safeArea: { flex: 1, backgroundColor: COLORS.background },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, width: "100%", maxWidth: 920, alignSelf: "center", flexGrow: 1 },
+  header: { gap: 14, marginBottom: 16 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  searchWrap: { flex: 1 },
+  iconButton: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+  badge: { position: "absolute", top: 5, right: 5, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center" },
+  badgeText: { color: COLORS.white, fontSize: 10, fontWeight: "900" },
+  metaRow: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
+  metaText: { color: COLORS.mutedText, fontSize: 12, fontWeight: "700", textTransform: "capitalize" },
+  separator: { height: 14 },
 });

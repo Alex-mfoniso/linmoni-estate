@@ -24,7 +24,9 @@ export default ({ config }) => ({
     firebaseMeasurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
     cloudinaryCloudName: process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME,
     cloudinaryUploadPreset: process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
-    backendApiUrl: process.env.EXPO_PUBLIC_BACKEND_API_URL,
+    apiUrl: process.env.EXPO_PUBLIC_API_URL,
+    backendApiUrl:
+      process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_BACKEND_API_URL,
     invitationApiUrl: process.env.EXPO_PUBLIC_INVITATION_API_URL,
   },
 });

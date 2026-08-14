@@ -9,12 +9,12 @@ export default function AdminLayout() {
     <ProtectedGroup role={ROLES.ADMIN}>
       <RoleBasedTabBar
         initialRouteName="dashboard"
-        visibleRouteNames={["dashboard", "management", "analytics", "more"]}
+        visibleRouteNames={["dashboard", "management", "activity", "profile"]}
       >
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: "Home",
+            title: "Overview",
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="home-outline" color={color} size={size} />
             ),
@@ -30,11 +30,11 @@ export default function AdminLayout() {
           }}
         />
         <Tabs.Screen
-          name="analytics"
+          name="activity"
           options={{
-            title: "Analytics",
+            title: "Activity",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="pie-chart-outline" color={color} size={size} />
+              <Ionicons name="newspaper-outline" color={color} size={size} />
             ),
           }}
         />
@@ -51,15 +51,8 @@ export default function AdminLayout() {
         <Tabs.Screen name="properties" options={{ tabBarButton: () => null }} />
         <Tabs.Screen name="bookings" options={{ tabBarButton: () => null }} />
         <Tabs.Screen name="messages" options={{ tabBarButton: () => null }} />
-        <Tabs.Screen
-          name="more"
-          options={{
-            title: "More",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="ellipsis-horizontal-outline" color={color} size={size} />
-            ),
-          }}
-        />
+        <Tabs.Screen name="analytics" options={{ tabBarButton: () => null }} />
+        <Tabs.Screen name="more" options={{ tabBarButton: () => null }} />
       </RoleBasedTabBar>
     </ProtectedGroup>
   );

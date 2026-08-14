@@ -10,7 +10,7 @@ import PropertyCard from "../../components/PropertyCard";
 import ScreenContainer from "../../components/ScreenContainer";
 import COLORS from "../../constants/colors";
 import { useAuth } from "../../contexts/AuthContext";
-import { removeFavorite, getUserFavorites } from "../../services/favoriteService";
+import { favouriteApi } from "../../services/favouriteApi";
 
 export default function ClientSavedScreen() {
   const router = useRouter();
@@ -29,9 +29,9 @@ export default function ClientSavedScreen() {
       setError("");
 
       try {
-        const items = await getUserFavorites(currentUser?.uid);
+        const result = await favouriteApi.list({ page: 1, limit: 50 });
         if (active) {
-          setFavorites(items);
+          setFavorites(result.items);
         }
       } catch (err) {
         if (active) {
@@ -57,7 +57,7 @@ export default function ClientSavedScreen() {
     }
 
     try {
-      await removeFavorite(currentUser?.uid, pendingRemove.propertyId);
+      await favouriteApi.remove(pendingRemove.property.id);
       setPendingRemove(null);
       setRefreshTick((value) => value + 1);
     } catch (err) {
@@ -104,16 +104,9 @@ export default function ClientSavedScreen() {
         ? favorites.map((favorite) => (
             <PropertyCard
               key={favorite.id}
-              property={{
-                id: favorite.propertyId,
-                title: favorite.propertyTitle,
-                price: favorite.propertyPrice,
-                address: favorite.propertyAddress,
-                imageUrl: favorite.propertyImage,
-                status: "saved",
-              }}
+              property={favorite.property}
               onView={() =>
-                router.push(`/(client)/properties/${favorite.propertyId}`)
+                router.push(`/(client)/properties/${favorite.property.id}`)
               }
               onFavoriteToggle={() => setPendingRemove(favorite)}
               isFavorited

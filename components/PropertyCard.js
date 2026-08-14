@@ -5,15 +5,7 @@ import COLORS from "../constants/colors";
 import StatusBadge from "./StatusBadge";
 import { SHADOWS } from "../constants/theme";
 import { getPropertyCoverUri, getPropertyGallery } from "../utils/propertyMedia";
-
-function formatPrice(price) {
-  const value = Number(price || 0);
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+import { formatListingPrice } from "../utils/formatCurrency";
 
 function getFeatureValue(value, suffix) {
   const numeric = Number(value || 0);
@@ -47,7 +39,15 @@ export default function PropertyCard({
     <View style={styles.card}>
       <View style={styles.media}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.image}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={`${property?.id || "property"}:${imageUrl}`}
+            transition={220}
+            accessibilityLabel={`Photo of ${property?.title || "property"}`}
+          />
         ) : (
           <View style={styles.imageFallback}>
             <Ionicons name="business-outline" size={34} color={COLORS.primary} />
@@ -65,7 +65,13 @@ export default function PropertyCard({
           </View>
           <View style={styles.mediaRow}>
             {onFavoriteToggle ? (
-              <Pressable onPress={onFavoriteToggle} style={styles.favoriteButton}>
+              <Pressable
+                onPress={onFavoriteToggle}
+                style={styles.favoriteButton}
+                accessibilityRole="button"
+                accessibilityLabel={isFavorited ? "Remove from saved properties" : "Save property"}
+                accessibilityState={{ selected: isFavorited }}
+              >
                 <Ionicons
                   name={isFavorited ? "heart" : "heart-outline"}
                   size={18}
@@ -87,11 +93,11 @@ export default function PropertyCard({
         <View style={styles.locationRow}>
           <Ionicons name="location-outline" size={16} color={COLORS.secondary} />
           <Text style={styles.location} numberOfLines={1}>
-            {property?.address || "Address unavailable"}
+            {property?.location || property?.address || [property?.city, property?.state].filter(Boolean).join(", ") || "Location unavailable"}
           </Text>
         </View>
 
-        <Text style={styles.price}>{formatPrice(property?.price)}</Text>
+        <Text style={styles.price}>{formatListingPrice(property)}</Text>
 
         <View style={styles.featureRow}>
           <View style={styles.featurePill}>
@@ -112,7 +118,7 @@ export default function PropertyCard({
         {onView || onPrimaryAction || onSecondaryAction || onTertiaryAction ? (
           <View style={styles.actions}>
             {onView ? (
-              <Pressable onPress={onView} style={styles.actionPrimary}>
+              <Pressable onPress={onView} style={styles.actionPrimary} accessibilityRole="button" accessibilityLabel={`View ${property?.title || "property"}`}>
                 <Text style={styles.actionPrimaryText}>View</Text>
               </Pressable>
             ) : null}
@@ -150,7 +156,7 @@ export default function PropertyCard({
 const styles = StyleSheet.create({
   card: {
     overflow: "hidden",
-    borderRadius: 28,
+    borderRadius: 20,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -222,7 +228,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 20,
     lineHeight: 26,
-    fontWeight: "900",
+    fontWeight: "700",
   },
   locationRow: {
     flexDirection: "row",
@@ -239,7 +245,8 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 24,
     lineHeight: 28,
-    fontWeight: "900",
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   featureRow: {
     flexDirection: "row",

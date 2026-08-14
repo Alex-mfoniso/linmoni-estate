@@ -1,0 +1,3 @@
+import { describe, expect, it, vi } from "vitest";
+import { authorizeRoles } from "../../src/middleware/authorizeRoles.js";
+describe("authorizeRoles", () => { it("allows an authorized MongoDB role", () => { const next = vi.fn(); authorizeRoles("admin")({ user: { role: "admin" } }, {}, next); expect(next).toHaveBeenCalledWith(); }); it("rejects forbidden and unknown roles", () => { let next = vi.fn(); authorizeRoles("admin")({ user: { role: "client" } }, {}, next); expect(next.mock.calls[0][0].code).toBe("ROLE_FORBIDDEN"); next = vi.fn(); authorizeRoles("admin")({ user: { role: "owner" } }, {}, next); expect(next.mock.calls[0][0].code).toBe("ROLE_UNKNOWN"); }); });

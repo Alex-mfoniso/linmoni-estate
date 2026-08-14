@@ -19,8 +19,10 @@ function formatDate(value) {
 function getStatusVariant(status) {
   switch (status) {
     case "approved":
+    case "confirmed":
       return "success";
     case "rejected":
+    case "cancelled":
       return "danger";
     case "completed":
       return "neutral";
@@ -46,10 +48,10 @@ export default function BookingCard({
       <View style={styles.header}>
         <View style={styles.copy}>
           <Text style={styles.title} numberOfLines={2}>
-            {booking?.propertyTitle || "Untitled booking"}
+            {booking?.property?.title || booking?.propertyTitle || "Untitled booking"}
           </Text>
           <Text style={styles.subtitle} numberOfLines={1}>
-            {booking?.clientName || "Client"}
+            {booking?.property?.location || booking?.clientName || "Inspection"}
           </Text>
         </View>
         <StatusBadge label={status} variant={variant} />
@@ -59,13 +61,13 @@ export default function BookingCard({
         <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
           <Text style={styles.detailText}>
-            {booking?.preferredDate || "Date unavailable"}
+            {booking?.scheduledAt ? new Date(booking.scheduledAt).toLocaleDateString("en-NG") : booking?.preferredDate || "Date unavailable"}
           </Text>
         </View>
         <View style={styles.detailRow}>
           <Ionicons name="time-outline" size={16} color={COLORS.primary} />
           <Text style={styles.detailText}>
-            {booking?.preferredTime || "Time unavailable"}
+            {booking?.scheduledAt ? new Date(booking.scheduledAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" }) : booking?.preferredTime || "Time unavailable"}
           </Text>
         </View>
       </View>

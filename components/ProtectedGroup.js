@@ -1,34 +1,5 @@
 import { Redirect } from "expo-router";
 import { useAuth } from "../contexts/AuthContext";
 import LoadingSpinner from "./LoadingSpinner";
-import { getDashboardRouteForRole } from "../utils/authRoutes";
-
-export default function ProtectedGroup({ role, children }) {
-  const { currentUser, userProfile, loading } = useAuth();
-
-  if (loading) {
-    return <LoadingSpinner label="Checking access..." />;
-  }
-
-  if (!currentUser) {
-    return <Redirect href="/login" />;
-  }
-
-  const currentRole = userProfile?.role;
-
-  if (!currentRole) {
-    return <Redirect href="/login" />;
-  }
-
-  if (userProfile?.mustChangePassword) {
-    return <Redirect href="/change-temporary-password" />;
-  }
-
-  if (currentRole !== role) {
-    return (
-      <Redirect href={getDashboardRouteForRole(currentRole) ?? "/login"} />
-    );
-  }
-
-  return children;
-}
+import { getAuthDestination } from "../utils/authRoutes";
+export default function ProtectedGroup({ role, children }) { const { firebaseUser, profile, loading, authResolution } = useAuth(); if (loading) return <LoadingSpinner label="Checking access..." />; if (!firebaseUser) return <Redirect href="/login" />; const destination = getAuthDestination({ firebaseUser, profile, authResolution }); if (authResolution !== "ready") return <Redirect href={destination} />; if (!profile?.role || profile.role !== role) return <Redirect href={destination} />; return children; }

@@ -11,7 +11,7 @@ import ScreenContainer from "../../../../components/ScreenContainer";
 import COLORS from "../../../../constants/colors";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { uploadMultipleImages } from "../../../../services/cloudinaryService";
-import { getPropertyById, updateProperty } from "../../../../services/propertyService";
+import { realtorApi } from "../../../../services/realtorApi";
 import {
   buildEditableImageItems,
   isLocalImageItem,
@@ -22,7 +22,6 @@ function isValidNumber(value) {
   if (value === "" || value === null || typeof value === "undefined") {
     return true;
   }
-
   return Number.isFinite(Number(value));
 }
 
@@ -32,16 +31,22 @@ export default function EditPropertyScreen() {
   const { currentUser, userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     title: "",
     description: "",
     price: "",
-    address: "",
-    propertyType: "",
+    street: "",
+    city: "Lagos",
+    state: "Lagos",
+    country: "Nigeria",
+    propertyType: "apartment",
+    listingType: "sale",
     bedrooms: "",
     bathrooms: "",
-    status: "available",
+    areaSqFt: "",
+    features: ""
   });
   const [images, setImages] = useState([]);
   const [property, setProperty] = useState(null);
@@ -54,10 +59,12 @@ export default function EditPropertyScreen() {
       setError("");
 
       try {
-        const item = await getPropertyById(String(params.id || ""));
-        if (!item) {
-          throw new Error("Property not found.");
+        const res = await realtorApi.getProperty(String(params.id || ""));
+        if (!res || !res.success || !res.data?.property) {
+          throw new Error("Property not found or access denied.");
         }
+
+        const item = res.data.property;
 
         if (active) {
           setProperty(item);
@@ -65,11 +72,16 @@ export default function EditPropertyScreen() {
             title: item.title || "",
             description: item.description || "",
             price: String(item.price ?? ""),
-            address: item.address || "",
-            propertyType: item.propertyType || "",
-            bedrooms: String(item.bedrooms ?? ""),
-            bathrooms: String(item.bathrooms ?? ""),
-            status: item.status || "available",
+            street: item.address?.street || "",
+            city: item.address?.city || "Lagos",
+            state: item.address?.state || "Lagos",
+            country: item.address?.country || "Nigeria",
+            propertyType: item.propertyType || "apartment",
+            listingType: item.listingType || "sale",
+            bedrooms: String(item.details?.bedrooms ?? ""),
+            bathrooms: String(item.details?.bathrooms ?? ""),
+            areaSqFt: String(item.details?.areaSqFt ?? ""),
+            features: item.features ? item.features.join(", ") : ""
           });
           setImages(buildEditableImageItems(item));
         }
@@ -98,26 +110,31 @@ export default function EditPropertyScreen() {
     }));
   }
 
-  async function handleSubmit() {
-    if (saving || !property) {
+  async function handleSave(submit = false) {
+    if (saving || savingDraft || !property) {
       return;
     }
 
-    if (!form.title.trim() || !form.description.trim() || !form.price.trim()) {
-      Alert.alert("Missing details", "Please complete the required property fields.");
+    if (!form.title.trim() || !form.description.trim() || !form.price.trim() || !form.street.trim()) {
+      Alert.alert("Missing details", "Please fill in all required fields: Title, Description, Price, and Street Address.");
       return;
     }
 
     if (
       !isValidNumber(form.price) ||
       !isValidNumber(form.bedrooms) ||
-      !isValidNumber(form.bathrooms)
+      !isValidNumber(form.bathrooms) ||
+      (form.areaSqFt && !isValidNumber(form.areaSqFt))
     ) {
-      Alert.alert("Invalid input", "Please enter valid numeric values for price and rooms.");
+      Alert.alert("Invalid input", "Please enter valid numeric values for price, bedrooms, bathrooms, and area.");
       return;
     }
 
-    setSaving(true);
+    if (submit) {
+      setSaving(true);
+    } else {
+      setSavingDraft(true);
+    }
 
     try {
       const localItems = images.filter(isLocalImageItem);
@@ -142,30 +159,66 @@ export default function EditPropertyScreen() {
         };
       });
 
-      const payload = preparePropertyImagesForSave(finalizedItems);
+      const savedMedia = preparePropertyImagesForSave(finalizedItems);
+      const coverImage = savedMedia.coverImage?.secureUrl
+        ? { url: savedMedia.coverImage.secureUrl, publicId: savedMedia.coverImage.publicId }
+        : null;
+      const imagesPayload = (savedMedia.images || []).map((img) => ({
+        url: img.secureUrl,
+        publicId: img.publicId,
+      }));
 
-      const updated = await updateProperty(property.id, {
+      const normPropertyType = form.propertyType.trim().toLowerCase();
+      const normListingType = form.listingType.trim().toLowerCase();
+
+      const payload = {
         title: form.title.trim(),
         description: form.description.trim(),
+        propertyType: normPropertyType,
+        listingType: normListingType,
         price: Number(form.price),
-        address: form.address.trim(),
-        propertyType: form.propertyType.trim(),
-        bedrooms: Number(form.bedrooms || 0),
-        bathrooms: Number(form.bathrooms || 0),
-        status: form.status.trim(),
-        ...payload,
-      });
+        address: {
+          street: form.street.trim(),
+          city: form.city.trim(),
+          state: form.state.trim(),
+          country: form.country.trim(),
+          postalCode: ""
+        },
+        details: {
+          bedrooms: Number(form.bedrooms || 0),
+          bathrooms: Number(form.bathrooms || 0),
+          areaSqFt: Number(form.areaSqFt || 1200)
+        },
+        coverImage,
+        images: imagesPayload,
+        features: form.features ? form.features.split(",").map(f => f.trim()).filter(Boolean) : [],
+        submit
+      };
 
-      router.replace(`/(realtor)/properties/${updated.id}`);
+      const res = await realtorApi.updateProperty(property.id, payload);
+
+      if (res && res.success) {
+        Alert.alert(
+          submit ? "Listing Submitted" : "Draft Updated",
+          submit
+            ? "Your edits have been saved and submitted for admin review."
+            : "Your draft edits have been saved.",
+          [{ text: "OK", onPress: () => router.replace(`/(realtor)/properties/${property.id}`) }]
+        );
+      } else {
+        Alert.alert("Error", "Could not complete update.");
+      }
     } catch (err) {
-      Alert.alert("Save property", err?.message || "Unable to update this property.");
+      console.error("Update property error:", err);
+      Alert.alert("Save property failed", err?.message || "Unable to update this property.");
     } finally {
       setSaving(false);
+      setSavingDraft(false);
     }
   }
 
   if (loading) {
-    return <LoadingSpinner label="Loading property..." />;
+    return <LoadingSpinner label="Loading property record..." />;
   }
 
   if (error || !property) {
@@ -191,46 +244,78 @@ export default function EditPropertyScreen() {
     <ScreenContainer contentContainerStyle={styles.container}>
       <AppHeader
         title="Edit Property"
-        subtitle="Update the listing details and uploaded property photos."
+        subtitle={`Editing: ${property.title}`}
         userName={currentUser?.displayName || userProfile?.fullName || "Realtor"}
         role={(userProfile?.role || "realtor").toUpperCase()}
       />
 
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Property details</Text>
+        <Text style={styles.sectionLabel}>Primary Details</Text>
         <AppInput
-          label="Title"
+          label="Title *"
           value={form.title}
           onChangeText={(value) => updateField("title", value)}
-          placeholder="e.g. Harbor View Homes"
+          placeholder="e.g. Harbor View Duplex"
         />
         <AppInput
-          label="Description"
+          label="Description *"
           value={form.description}
           onChangeText={(value) => updateField("description", value)}
-          placeholder="Describe the property"
+          placeholder="Describe property features, facilities, and options"
           multiline
           inputStyle={styles.multiline}
         />
         <AppInput
-          label="Price"
+          label="Price (NGN) *"
           value={form.price}
           onChangeText={(value) => updateField("price", value)}
-          placeholder="e.g. 85000000"
+          placeholder="e.g. 150000000"
           keyboardType="numeric"
         />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Location & Category</Text>
         <AppInput
-          label="Address"
-          value={form.address}
-          onChangeText={(value) => updateField("address", value)}
-          placeholder="Property address"
+          label="Street Address *"
+          value={form.street}
+          onChangeText={(value) => updateField("street", value)}
+          placeholder="e.g. 15, Admiralty Way"
         />
-        <AppInput
-          label="Property type"
-          value={form.propertyType}
-          onChangeText={(value) => updateField("propertyType", value)}
-          placeholder="Duplex, Apartment, Land..."
-        />
+        <View style={styles.row}>
+          <AppInput
+            label="City"
+            value={form.city}
+            onChangeText={(value) => updateField("city", value)}
+            containerStyle={styles.flexInput}
+          />
+          <AppInput
+            label="State"
+            value={form.state}
+            onChangeText={(value) => updateField("state", value)}
+            containerStyle={styles.flexInput}
+          />
+        </View>
+        <View style={styles.row}>
+          <AppInput
+            label="Property Type"
+            value={form.propertyType}
+            onChangeText={(value) => updateField("propertyType", value)}
+            placeholder="apartment, duplex, house, land..."
+            containerStyle={styles.flexInput}
+          />
+          <AppInput
+            label="Listing Type"
+            value={form.listingType}
+            onChangeText={(value) => updateField("listingType", value)}
+            placeholder="sale, rent, short_let, lease"
+            containerStyle={styles.flexInput}
+          />
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Specifications & Features</Text>
         <View style={styles.row}>
           <AppInput
             label="Bedrooms"
@@ -250,24 +335,46 @@ export default function EditPropertyScreen() {
           />
         </View>
         <AppInput
-          label="Status"
-          value={form.status}
-          onChangeText={(value) => updateField("status", value)}
-          placeholder="available, rented, sold, draft"
+          label="Area (Sq Ft)"
+          value={form.areaSqFt}
+          onChangeText={(value) => updateField("areaSqFt", value)}
+          placeholder="e.g. 3500"
+          keyboardType="numeric"
+        />
+        <AppInput
+          label="Features (comma-separated)"
+          value={form.features}
+          onChangeText={(value) => updateField("features", value)}
+          placeholder="e.g. Swimming Pool, Gym, Security, Generator"
         />
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Images</Text>
+        <Text style={styles.sectionLabel}>Gallery Media</Text>
         <PropertyImageUploader value={images} onChange={setImages} />
       </View>
 
-      <PrimaryButton
-        title={saving ? "Saving..." : "Save changes"}
-        onPress={handleSubmit}
-        loading={saving}
-      />
-      <PrimaryButton title="Back to details" variant="ghost" onPress={() => router.back()} />
+      <View style={styles.buttonGroup}>
+        <PrimaryButton
+          title={saving ? "Submitting for Review..." : "Submit for Approval"}
+          onPress={() => handleSave(true)}
+          loading={saving}
+          disabled={savingDraft}
+        />
+        <PrimaryButton
+          title={savingDraft ? "Saving..." : "Save Draft"}
+          variant="secondary"
+          onPress={() => handleSave(false)}
+          loading={savingDraft}
+          disabled={saving}
+        />
+        <PrimaryButton
+          title="Back to Details"
+          variant="ghost"
+          onPress={() => router.back()}
+          disabled={saving || savingDraft}
+        />
+      </View>
     </ScreenContainer>
   );
 }
@@ -304,5 +411,9 @@ const styles = StyleSheet.create({
   multiline: {
     minHeight: 112,
     textAlignVertical: "top",
+  },
+  buttonGroup: {
+    gap: 10,
+    marginTop: 8,
   },
 });

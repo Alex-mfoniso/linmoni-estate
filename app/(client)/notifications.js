@@ -6,6 +6,7 @@ export default function ClientNotificationsScreen() {
       title="Notifications"
       subtitle="Recent updates for your client account."
       routePrefix="/(client)"
+      remote
     />
   );
 }

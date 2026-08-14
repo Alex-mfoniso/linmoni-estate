@@ -1,8 +1,9 @@
 export const RADII = {
-  sm: 12,
-  md: 16,
-  lg: 22,
-  xl: 28,
+  xs: 8,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 24,
   pill: 999,
 };
 

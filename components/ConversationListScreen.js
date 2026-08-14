@@ -8,6 +8,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import ScreenContainer from "./ScreenContainer";
 import { useAuth } from "../contexts/AuthContext";
 import { subscribeToConversations } from "../services/messageService";
+import { conversationApi } from "../services/conversationApi";
 
 export default function ConversationListScreen({
   title,
@@ -17,6 +18,7 @@ export default function ConversationListScreen({
   emptyActionLabel,
   emptyActionRoute,
   routePrefix,
+  remote = false,
 }) {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
@@ -33,6 +35,19 @@ export default function ConversationListScreen({
       setError("");
 
       try {
+        if (remote) {
+          const result = await conversationApi.list({ page: 1, limit: 50 });
+          if (active) {
+            setConversations(result.items.map((item) => ({
+              ...item,
+              partnerProfile: item.realtor,
+              propertyTitle: item.property?.title,
+              lastMessage: item.lastMessageText,
+            })));
+            setLoading(false);
+          }
+          return;
+        }
         unsubscribe = await subscribeToConversations(currentUser?.uid, (items) => {
           if (!active) {
             return;
@@ -55,7 +70,7 @@ export default function ConversationListScreen({
       active = false;
       unsubscribe();
     };
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, remote]);
 
   return (
     <ScreenContainer scroll={false} contentContainerStyle={styles.container}>

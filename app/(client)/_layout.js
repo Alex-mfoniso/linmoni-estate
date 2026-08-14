@@ -3,18 +3,16 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { ROLES } from "../../constants/roles";
 import ProtectedGroup from "../../components/ProtectedGroup";
 import RoleBasedTabBar from "../../components/RoleBasedTabBar";
-import { useAuth } from "../../contexts/AuthContext";
-import useUnreadMessageCount from "../../hooks/useUnreadMessageCount";
+import useClientUnreadMessageCount from "../../hooks/useClientUnreadMessageCount";
 
 export default function ClientLayout() {
-  const { currentUser } = useAuth();
-  const unreadMessages = useUnreadMessageCount(currentUser?.uid);
+  const unreadMessages = useClientUnreadMessageCount();
 
   return (
     <ProtectedGroup role={ROLES.CLIENT}>
       <RoleBasedTabBar
         initialRouteName="dashboard"
-        visibleRouteNames={["dashboard", "properties", "messages", "more"]}
+        visibleRouteNames={["dashboard", "properties", "messages", "profile"]}
       >
         <Tabs.Screen
           name="dashboard"
@@ -57,12 +55,7 @@ export default function ClientLayout() {
         <Tabs.Screen name="bookings" options={{ tabBarButton: () => null }} />
         <Tabs.Screen
           name="more"
-          options={{
-            title: "More",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="ellipsis-horizontal-outline" color={color} size={size} />
-            ),
-          }}
+          options={{ tabBarButton: () => null }}
         />
       </RoleBasedTabBar>
     </ProtectedGroup>

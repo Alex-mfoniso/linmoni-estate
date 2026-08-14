@@ -179,6 +179,7 @@ async function getUserByEmail(email) {
   return users.find((user) => user.email === email.trim().toLowerCase()) ?? null;
 }
 
+// @deprecated Phase B active authentication uses Firebase through services/authService.js.
 async function authenticateUser(emailOrCredentials, passwordMaybe) {
   const email =
     typeof emailOrCredentials === "object" && emailOrCredentials !== null
@@ -414,6 +415,7 @@ async function updateUserRecord(uid, updates = {}) {
   return stripSecret(nextUser);
 }
 
+// @deprecated Demo-only local operation. Never use for active authentication.
 async function setUserPassword(uid, password, extraUpdates = {}) {
   const users = await readUsers();
   const index = users.findIndex((user) => user.uid === uid);

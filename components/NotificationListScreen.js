@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import AppHeader from "./AppHeader";
 import LoadingSpinner from "./LoadingSpinner";
@@ -15,11 +15,13 @@ import {
   markNotificationAsRead,
   subscribeToUserNotifications,
 } from "../services/notificationService";
+import { notificationApi } from "../services/notificationApi";
 
 export default function NotificationListScreen({
   title = "Notifications",
   subtitle = "Recent activity for your account.",
   routePrefix,
+  remote = false,
 }) {
   const router = useRouter();
   const { currentUser, userProfile } = useAuth();
@@ -27,6 +29,11 @@ export default function NotificationListScreen({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+
+  async function loadRemote() {
+    const result = await notificationApi.list({ page: 1, limit: 50 });
+    setNotifications(result.items || []);
+  }
 
   useEffect(() => {
     let active = true;
@@ -37,6 +44,11 @@ export default function NotificationListScreen({
       setError("");
 
       try {
+        if (remote) {
+          await loadRemote();
+          if (active) setLoading(false);
+          return;
+        }
         unsubscribe = await subscribeToUserNotifications(currentUser?.uid, (items) => {
           if (!active) {
             return;
@@ -61,12 +73,13 @@ export default function NotificationListScreen({
       active = false;
       unsubscribe();
     };
-  }, [currentUser?.uid]);
+  }, [currentUser?.uid, remote]);
 
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      if (remote) await loadRemote();
+      else await new Promise((resolve) => setTimeout(resolve, 300));
     } finally {
       setRefreshing(false);
     }
@@ -78,7 +91,8 @@ export default function NotificationListScreen({
     }
 
     try {
-      await markNotificationAsRead(notification.id, currentUser?.uid);
+      await (remote ? notificationApi.markRead(notification.id) : markNotificationAsRead(notification.id, currentUser?.uid));
+      if (remote) setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, isRead: true } : item));
       const routeMap = {
         conversation: `${routePrefix}/messages/${notification.relatedId}`,
         booking: `${routePrefix}/bookings/${notification.relatedId}`,
@@ -98,7 +112,8 @@ export default function NotificationListScreen({
 
   async function handleDelete(notification) {
     try {
-      await deleteNotification(notification.id, currentUser?.uid);
+      await (remote ? notificationApi.remove(notification.id) : deleteNotification(notification.id, currentUser?.uid));
+      if (remote) setNotifications((items) => items.filter((item) => item.id !== notification.id));
     } catch (err) {
       Alert.alert("Notification", err?.message || "Unable to delete notification.");
     }
@@ -106,18 +121,26 @@ export default function NotificationListScreen({
 
   async function handleMarkRead(notification) {
     try {
-      await markNotificationAsRead(notification.id, currentUser?.uid);
+      await (remote ? notificationApi.markRead(notification.id) : markNotificationAsRead(notification.id, currentUser?.uid));
+      if (remote) setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, isRead: true } : item));
     } catch (err) {
       Alert.alert("Notification", err?.message || "Unable to mark as read.");
     }
   }
 
   async function handleMarkAllRead() {
-    await markAllNotificationsAsRead(currentUser?.uid);
+    await (remote ? notificationApi.markAllRead() : markAllNotificationsAsRead(currentUser?.uid));
+    if (remote) setNotifications((items) => items.map((item) => ({ ...item, isRead: true })));
   }
 
   async function handleDeleteAllRead() {
-    await deleteAllReadNotifications(currentUser?.uid);
+    if (remote) {
+      const read = notifications.filter((item) => item.isRead);
+      await Promise.all(read.map((item) => notificationApi.remove(item.id)));
+      setNotifications((items) => items.filter((item) => !item.isRead));
+    } else {
+      await deleteAllReadNotifications(currentUser?.uid);
+    }
   }
 
   return (
@@ -135,6 +158,8 @@ export default function NotificationListScreen({
       </View>
 
       {loading ? <LoadingSpinner label="Loading notifications..." /> : null}
+
+      {!loading && error ? <Text style={styles.error}>{error}</Text> : null}
 
       {!loading && !error ? (
         <NotificationList
@@ -161,4 +186,5 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
+  error: { color: "#B9423E", fontSize: 13, fontWeight: "700" },
 });

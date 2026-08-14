@@ -18,8 +18,6 @@ export default function ScreenContainer({
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <Container style={styles.container} {...containerProps}>
-        <View style={styles.backdropTop} />
-        <View style={styles.backdropBottom} />
         <View style={[styles.content, contentContainerStyle]}>{children}</View>
       </Container>
     </SafeAreaView>
@@ -43,24 +41,6 @@ const styles = StyleSheet.create({
     width: "100%",
     flex: 1,
     alignSelf: "center",
-    maxWidth: 760,
-  },
-  backdropTop: {
-    position: "absolute",
-    top: -100,
-    right: -100,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: "rgba(15, 76, 92, 0.08)",
-  },
-  backdropBottom: {
-    position: "absolute",
-    bottom: -120,
-    left: -120,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: "rgba(200, 169, 81, 0.08)",
+    maxWidth: 920,
   },
 });

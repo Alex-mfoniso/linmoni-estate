@@ -8,6 +8,7 @@ import ProfileEditor from "../../components/ProfileEditor";
 import SecondaryButton from "../../components/SecondaryButton";
 import ScreenContainer from "../../components/ScreenContainer";
 import { useAuth } from "../../contexts/AuthContext";
+import ListItem from "../../components/ListItem";
 
 export default function ClientProfileScreen() {
   const router = useRouter();
@@ -51,6 +52,11 @@ export default function ClientProfileScreen() {
             saving={saving}
             error={error}
           />
+          <View style={styles.links}>
+            <ListItem title="Saved properties" description="Review your shortlist" icon="heart-outline" onPress={() => router.push("/(client)/saved")} />
+            <ListItem title="My bookings" description="Track inspection requests" icon="calendar-outline" onPress={() => router.push("/(client)/bookings")} />
+            <ListItem title="Notifications" description="See account and booking updates" icon="notifications-outline" onPress={() => router.push("/(client)/notifications")} />
+          </View>
           <View style={styles.footer}>
             <SecondaryButton title="Sign out" onPress={handleLogout} />
           </View>
@@ -79,4 +85,5 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: "auto",
   },
+  links: { gap: 10 },
 });

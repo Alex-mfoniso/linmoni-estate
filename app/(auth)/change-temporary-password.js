@@ -3,19 +3,17 @@ import { Controller, useForm } from "react-hook-form";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AuthShell from "../../components/AuthShell";
 import FormField from "../../components/FormField";
 import PrimaryButton from "../../components/PrimaryButton";
 import COLORS from "../../constants/colors";
 import { useAuth } from "../../contexts/AuthContext";
-import { changePassword } from "../../services/authService";
 import { AUTH_ROUTES, getPostLoginRoute } from "../../utils/authRoutes";
 import { getFriendlyErrorMessage } from "../../utils/errorMessages";
 
 const schema = yup.object({
-  currentPassword: yup.string().required("Temporary password is required"),
   newPassword: yup
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -28,9 +26,8 @@ const schema = yup.object({
 
 export default function ChangeTemporaryPasswordScreen() {
   const router = useRouter();
-  const { currentUser, userProfile, refreshUser } = useAuth();
+  const { currentUser, userProfile, updatePassword, logout } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formError, setFormError] = useState("");
@@ -42,7 +39,6 @@ export default function ChangeTemporaryPasswordScreen() {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
@@ -58,9 +54,8 @@ export default function ChangeTemporaryPasswordScreen() {
     setFormError("");
 
     try {
-      await changePassword(currentUser.uid, values.currentPassword, values.newPassword);
-      const refreshed = await refreshUser();
-      const destination = getPostLoginRoute(refreshed?.profile || userProfile);
+      const refreshed = await updatePassword(values.newPassword);
+      const destination = getPostLoginRoute(refreshed || userProfile);
       router.replace(destination || AUTH_ROUTES.LOGIN);
     } catch (err) {
       setFormError(getFriendlyErrorMessage(err, "Unable to change your password."));
@@ -76,9 +71,7 @@ export default function ChangeTemporaryPasswordScreen() {
       footer={
         <View style={styles.footerRow}>
           <Text style={styles.footerText}>Need help signing in?</Text>
-          <Link href={AUTH_ROUTES.LOGIN} style={styles.footerLink}>
-            Return to login
-          </Link>
+          <Text onPress={logout} style={styles.footerLink}>Sign out</Text>
         </View>
       }
     >
@@ -90,36 +83,6 @@ export default function ChangeTemporaryPasswordScreen() {
       </View>
 
       {formError ? <Text style={styles.errorBanner}>{formError}</Text> : null}
-
-      <Controller
-        control={control}
-        name="currentPassword"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <FormField
-            label="Temporary Password"
-            placeholder="Enter your current temporary password"
-            secureTextEntry={!showCurrentPassword}
-            textContentType="password"
-            autoComplete="password"
-            value={value}
-            onBlur={onBlur}
-            onChangeText={onChange}
-            error={errors.currentPassword?.message}
-            rightAccessory={
-              <Pressable
-                onPress={() => setShowCurrentPassword((current) => !current)}
-                hitSlop={10}
-              >
-                <Ionicons
-                  name={showCurrentPassword ? "eye-off-outline" : "eye-outline"}
-                  size={18}
-                  color={COLORS.mutedText}
-                />
-              </Pressable>
-            }
-          />
-        )}
-      />
 
       <Controller
         control={control}

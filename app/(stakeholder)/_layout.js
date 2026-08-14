@@ -9,14 +9,14 @@ export default function StakeholderLayout() {
     <ProtectedGroup role={ROLES.STAKEHOLDER}>
       <RoleBasedTabBar
         initialRouteName="dashboard"
-        visibleRouteNames={["dashboard", "analytics", "properties", "more"]}
+        visibleRouteNames={["dashboard", "analytics", "activity", "profile"]}
       >
         <Tabs.Screen
           name="dashboard"
           options={{
-            title: "Home",
+            title: "Overview",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="home-outline" color={color} size={size} />
+              <Ionicons name="business-outline" color={color} size={size} />
             ),
           }}
         />
@@ -25,16 +25,16 @@ export default function StakeholderLayout() {
           options={{
             title: "Analytics",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="pie-chart-outline" color={color} size={size} />
+              <Ionicons name="analytics-outline" color={color} size={size} />
             ),
           }}
         />
         <Tabs.Screen
-          name="properties"
+          name="activity"
           options={{
-            title: "Properties",
+            title: "Activity",
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="business-outline" color={color} size={size} />
+              <Ionicons name="list-outline" color={color} size={size} />
             ),
           }}
         />
@@ -47,16 +47,10 @@ export default function StakeholderLayout() {
             ),
           }}
         />
+        <Tabs.Screen name="properties" options={{ tabBarButton: () => null }} />
         <Tabs.Screen name="reports" options={{ tabBarButton: () => null }} />
-        <Tabs.Screen
-          name="more"
-          options={{
-            title: "More",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="ellipsis-horizontal-outline" color={color} size={size} />
-            ),
-          }}
-        />
+        <Tabs.Screen name="notifications" options={{ tabBarButton: () => null }} />
+        <Tabs.Screen name="more" options={{ tabBarButton: () => null }} />
       </RoleBasedTabBar>
     </ProtectedGroup>
   );

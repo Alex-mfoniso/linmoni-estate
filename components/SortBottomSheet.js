@@ -11,7 +11,7 @@ const SORT_OPTIONS = [
   { label: "Z-A", value: "title-desc" },
 ];
 
-export default function SortBottomSheet({ visible, value, onClose, onSelect }) {
+export default function SortBottomSheet({ visible, value, onClose, onSelect, options = SORT_OPTIONS }) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
@@ -25,7 +25,7 @@ export default function SortBottomSheet({ visible, value, onClose, onSelect }) {
           </View>
 
           <View style={styles.list}>
-            {SORT_OPTIONS.map((option) => {
+            {options.map((option) => {
               const active = value === option.value;
               return (
                 <Pressable

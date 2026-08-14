@@ -11,9 +11,9 @@ import AppHeader from "../../../components/AppHeader";
 import COLORS from "../../../constants/colors";
 import { SHADOWS } from "../../../constants/theme";
 import { useAuth } from "../../../contexts/AuthContext";
-import { deleteProperty, getProperties } from "../../../services/propertyService";
+import { realtorApi } from "../../../services/realtorApi";
 
-const STATUS_FILTERS = ["all", "available", "rented", "sold", "draft"];
+const STATUS_FILTERS = ["all", "active", "pending", "draft", "rejected"];
 
 export default function RealtorPropertiesScreen() {
   const router = useRouter();
@@ -33,14 +33,15 @@ export default function RealtorPropertiesScreen() {
       setError("");
 
       try {
-        const items = await getProperties({
+        const res = await realtorApi.getProperties({
           search,
           status,
-          createdBy: currentUser?.uid,
         });
 
-        if (active) {
-          setProperties(items);
+        if (active && res && res.success) {
+          setProperties(res.data.items);
+        } else if (active) {
+          setError("Failed to fetch properties.");
         }
       } catch (err) {
         if (active) {
@@ -58,26 +59,20 @@ export default function RealtorPropertiesScreen() {
     return () => {
       active = false;
     };
-  }, [currentUser?.uid, search, status, refreshTick]);
+  }, [search, status, refreshTick]);
 
   async function handleDelete(property) {
-    Alert.alert("Delete property", `Remove ${property.title} from your listings?`, [
+    Alert.alert("Archive listing", `Are you sure you want to archive ${property.title}? This will hide it from active searches.`, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete",
+        text: "Archive",
         style: "destructive",
         onPress: async () => {
           try {
-            await deleteProperty(property.id);
-            const items = await getProperties({
-              search,
-              status,
-              createdBy: currentUser?.uid,
-            });
-            setError("");
-            setProperties(items);
+            await realtorApi.archiveProperty(property.id);
+            setRefreshTick((v) => v + 1);
           } catch (err) {
-            setError(err?.message || "Unable to delete this property.");
+            setError(err?.message || "Unable to archive this property.");
           }
         },
       },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import AppHeader from "../../../components/AppHeader";
 import AppInput from "../../../components/AppInput";
@@ -9,7 +9,7 @@ import ScreenContainer from "../../../components/ScreenContainer";
 import COLORS from "../../../constants/colors";
 import { useAuth } from "../../../contexts/AuthContext";
 import { uploadMultipleImages } from "../../../services/cloudinaryService";
-import { createProperty } from "../../../services/propertyService";
+import { realtorApi } from "../../../services/realtorApi";
 import {
   isLocalImageItem,
   preparePropertyImagesForSave,
@@ -19,18 +19,22 @@ const DEFAULT_FORM = {
   title: "",
   description: "",
   price: "",
-  address: "",
-  propertyType: "",
+  street: "",
+  city: "Lagos",
+  state: "Lagos",
+  country: "Nigeria",
+  propertyType: "apartment",
+  listingType: "sale",
   bedrooms: "",
   bathrooms: "",
-  status: "available",
+  areaSqFt: "",
+  features: ""
 };
 
 function isValidNumber(value) {
   if (value === "" || value === null || typeof value === "undefined") {
     return true;
   }
-
   return Number.isFinite(Number(value));
 }
 
@@ -40,6 +44,7 @@ export default function AddPropertyScreen() {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [images, setImages] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   function updateField(field, value) {
     setForm((current) => ({
@@ -48,28 +53,32 @@ export default function AddPropertyScreen() {
     }));
   }
 
-  async function handleSubmit() {
-    if (saving) {
-      return;
-    }
+  async function handleSave(submit = false) {
+    if (saving || savingDraft) return;
 
-    if (!form.title.trim() || !form.description.trim() || !form.price.trim()) {
-      Alert.alert("Missing details", "Please complete the required property fields.");
+    if (!form.title.trim() || !form.description.trim() || !form.price.trim() || !form.street.trim()) {
+      Alert.alert("Missing details", "Please fill in all required fields: Title, Description, Price, and Street Address.");
       return;
     }
 
     if (
       !isValidNumber(form.price) ||
       !isValidNumber(form.bedrooms) ||
-      !isValidNumber(form.bathrooms)
+      !isValidNumber(form.bathrooms) ||
+      (form.areaSqFt && !isValidNumber(form.areaSqFt))
     ) {
-      Alert.alert("Invalid input", "Please enter valid numeric values for price and rooms.");
+      Alert.alert("Invalid input", "Please enter valid numeric values for price, bedrooms, bathrooms, and area.");
       return;
     }
 
-    setSaving(true);
+    if (submit) {
+      setSaving(true);
+    } else {
+      setSavingDraft(true);
+    }
 
     try {
+      // 1. Cloudinary upload
       const localItems = images.filter(isLocalImageItem);
       const uploadedImages = localItems.length
         ? await uploadMultipleImages(localItems, {
@@ -92,26 +101,64 @@ export default function AddPropertyScreen() {
         };
       });
 
-      const payload = preparePropertyImagesForSave(finalizedItems);
+      // 2. Prepare images structure
+      const savedMedia = preparePropertyImagesForSave(finalizedItems);
+      const coverImage = savedMedia.coverImage?.secureUrl
+        ? { url: savedMedia.coverImage.secureUrl, publicId: savedMedia.coverImage.publicId }
+        : null;
+      const imagesPayload = (savedMedia.images || []).map((img) => ({
+        url: img.secureUrl,
+        publicId: img.publicId,
+      }));
 
-      const property = await createProperty({
+      // Normalize types for backend Zod validation rules
+      const normPropertyType = form.propertyType.trim().toLowerCase();
+      const normListingType = form.listingType.trim().toLowerCase();
+
+      // 3. Assemble and submit payload
+      const payload = {
         title: form.title.trim(),
         description: form.description.trim(),
+        propertyType: normPropertyType,
+        listingType: normListingType,
         price: Number(form.price),
-        address: form.address.trim(),
-        propertyType: form.propertyType.trim(),
-        bedrooms: Number(form.bedrooms || 0),
-        bathrooms: Number(form.bathrooms || 0),
-        status: form.status.trim(),
-        createdBy: currentUser?.uid || "",
-        ...payload,
-      });
+        address: {
+          street: form.street.trim(),
+          city: form.city.trim(),
+          state: form.state.trim(),
+          country: form.country.trim(),
+          postalCode: ""
+        },
+        details: {
+          bedrooms: Number(form.bedrooms || 0),
+          bathrooms: Number(form.bathrooms || 0),
+          areaSqFt: Number(form.areaSqFt || 1200)
+        },
+        coverImage,
+        images: imagesPayload,
+        features: form.features ? form.features.split(",").map(f => f.trim()).filter(Boolean) : [],
+        submit // true -> pending, false -> draft
+      };
 
-      router.replace(`/(realtor)/properties/${property.id}`);
+      const res = await realtorApi.createProperty(payload);
+
+      if (res && res.success) {
+        Alert.alert(
+          submit ? "Listing Submitted" : "Draft Saved",
+          submit
+            ? "Your property listing has been submitted for admin approval."
+            : "Your draft has been saved successfully.",
+          [{ text: "OK", onPress: () => router.replace("/(realtor)/properties") }]
+        );
+      } else {
+        Alert.alert("Error", "Could not complete saving the property.");
+      }
     } catch (error) {
-      Alert.alert("Create property", error?.message || "Unable to create this property.");
+      console.error("Create property error:", error);
+      Alert.alert("Create property failed", error?.message || "Something went wrong.");
     } finally {
       setSaving(false);
+      setSavingDraft(false);
     }
   }
 
@@ -119,46 +166,78 @@ export default function AddPropertyScreen() {
     <ScreenContainer contentContainerStyle={styles.container}>
       <AppHeader
         title="Add Property"
-        subtitle="Create a new listing and upload property photos."
+        subtitle="Publish a listing or save it as a draft."
         userName={currentUser?.displayName || userProfile?.fullName || "Realtor"}
         role={(userProfile?.role || "realtor").toUpperCase()}
       />
 
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Property details</Text>
+        <Text style={styles.sectionLabel}>Primary Details</Text>
         <AppInput
-          label="Title"
+          label="Title *"
           value={form.title}
           onChangeText={(value) => updateField("title", value)}
-          placeholder="e.g. Harbor View Homes"
+          placeholder="e.g. Harbor View Duplex"
         />
         <AppInput
-          label="Description"
+          label="Description *"
           value={form.description}
           onChangeText={(value) => updateField("description", value)}
-          placeholder="Describe the property"
+          placeholder="Describe property features, facilities, and options"
           multiline
           inputStyle={styles.multiline}
         />
         <AppInput
-          label="Price"
+          label="Price (NGN) *"
           value={form.price}
           onChangeText={(value) => updateField("price", value)}
-          placeholder="e.g. 85000000"
+          placeholder="e.g. 150000000"
           keyboardType="numeric"
         />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Location & Category</Text>
         <AppInput
-          label="Address"
-          value={form.address}
-          onChangeText={(value) => updateField("address", value)}
-          placeholder="Property address"
+          label="Street Address *"
+          value={form.street}
+          onChangeText={(value) => updateField("street", value)}
+          placeholder="e.g. 15, Admiralty Way"
         />
-        <AppInput
-          label="Property type"
-          value={form.propertyType}
-          onChangeText={(value) => updateField("propertyType", value)}
-          placeholder="Duplex, Apartment, Land..."
-        />
+        <View style={styles.row}>
+          <AppInput
+            label="City"
+            value={form.city}
+            onChangeText={(value) => updateField("city", value)}
+            containerStyle={styles.flexInput}
+          />
+          <AppInput
+            label="State"
+            value={form.state}
+            onChangeText={(value) => updateField("state", value)}
+            containerStyle={styles.flexInput}
+          />
+        </View>
+        <View style={styles.row}>
+          <AppInput
+            label="Property Type"
+            value={form.propertyType}
+            onChangeText={(value) => updateField("propertyType", value)}
+            placeholder="apartment, duplex, house, land..."
+            containerStyle={styles.flexInput}
+          />
+          <AppInput
+            label="Listing Type"
+            value={form.listingType}
+            onChangeText={(value) => updateField("listingType", value)}
+            placeholder="sale, rent, short_let, lease"
+            containerStyle={styles.flexInput}
+          />
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Specifications & Features</Text>
         <View style={styles.row}>
           <AppInput
             label="Bedrooms"
@@ -177,19 +256,47 @@ export default function AddPropertyScreen() {
             containerStyle={styles.flexInput}
           />
         </View>
+        <AppInput
+          label="Area (Sq Ft)"
+          value={form.areaSqFt}
+          onChangeText={(value) => updateField("areaSqFt", value)}
+          placeholder="e.g. 3500"
+          keyboardType="numeric"
+        />
+        <AppInput
+          label="Features (comma-separated)"
+          value={form.features}
+          onChangeText={(value) => updateField("features", value)}
+          placeholder="e.g. Swimming Pool, Gym, Security, Generator"
+        />
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Images</Text>
+        <Text style={styles.sectionLabel}>Gallery Media</Text>
         <PropertyImageUploader value={images} onChange={setImages} />
       </View>
 
-      <PrimaryButton
-        title={saving ? "Creating..." : "Create property"}
-        onPress={handleSubmit}
-        loading={saving}
-      />
-      <PrimaryButton title="Back to properties" variant="ghost" onPress={() => router.back()} />
+      <View style={styles.buttonGroup}>
+        <PrimaryButton
+          title={saving ? "Submitting..." : "Submit for Approval"}
+          onPress={() => handleSave(true)}
+          loading={saving}
+          disabled={savingDraft}
+        />
+        <PrimaryButton
+          title={savingDraft ? "Saving..." : "Save Draft"}
+          variant="secondary"
+          onPress={() => handleSave(false)}
+          loading={savingDraft}
+          disabled={saving}
+        />
+        <PrimaryButton
+          title="Cancel"
+          variant="ghost"
+          onPress={() => router.back()}
+          disabled={saving || savingDraft}
+        />
+      </View>
     </ScreenContainer>
   );
 }
@@ -226,5 +333,9 @@ const styles = StyleSheet.create({
   multiline: {
     minHeight: 112,
     textAlignVertical: "top",
+  },
+  buttonGroup: {
+    gap: 10,
+    marginTop: 8,
   },
 });

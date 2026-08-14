@@ -9,9 +9,9 @@ import PrimaryButton from "../../components/PrimaryButton";
 import ScreenContainer from "../../components/ScreenContainer";
 import COLORS from "../../constants/colors";
 import { useAuth } from "../../contexts/AuthContext";
-import { deleteBooking, getBookings } from "../../services/bookingService";
+import { bookingApi } from "../../services/bookingApi";
 
-const STATUS_FILTERS = ["all", "pending", "approved", "rejected", "completed"];
+const STATUS_FILTERS = ["all", "pending", "confirmed", "completed", "cancelled"];
 
 export default function ClientBookingsScreen() {
   const router = useRouter();
@@ -31,14 +31,11 @@ export default function ClientBookingsScreen() {
       setError("");
 
       try {
-        const items = await getBookings({
-          search,
-          status,
-          clientId: currentUser?.uid,
-        });
+        const result = await bookingApi.list({ page: 1, limit: 50, status: status === "all" ? undefined : status });
 
         if (active) {
-          setBookings(items);
+          const needle = search.trim().toLowerCase();
+          setBookings(needle ? result.items.filter((item) => item.property?.title?.toLowerCase().includes(needle)) : result.items);
         }
       } catch (err) {
         if (active) {
@@ -66,14 +63,10 @@ export default function ClientBookingsScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await deleteBooking(booking.id);
-            const items = await getBookings({
-              search,
-              status,
-              clientId: currentUser?.uid,
-            });
+            await bookingApi.cancel(booking.id);
+            const result = await bookingApi.list({ page: 1, limit: 50, status: status === "all" ? undefined : status });
             setError("");
-            setBookings(items);
+            setBookings(result.items);
           } catch (err) {
             setError(err?.message || "Unable to cancel this booking.");
           }
@@ -167,10 +160,10 @@ export default function ClientBookingsScreen() {
               key={booking.id}
               booking={booking}
               onViewProperty={() =>
-                router.push(`/(client)/properties/${booking.propertyId}`)
+                router.push(`/(client)/properties/${booking.property?.id}`)
               }
               onPrimaryAction={
-                booking.status === "pending" ? () => handleCancel(booking) : null
+                ["pending", "confirmed", "reschedule_requested"].includes(booking.status) ? () => handleCancel(booking) : null
               }
               primaryActionLabel="Cancel"
             />

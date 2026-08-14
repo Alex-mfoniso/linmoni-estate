@@ -1,4 +1,5 @@
 export const SPACING = {
+  none: 0,
   xxs: 4,
   xs: 8,
   sm: 12,
@@ -6,6 +7,8 @@ export const SPACING = {
   lg: 20,
   xl: 24,
   xxl: 32,
+  xxxl: 40,
+  section: 48,
 };
 
 export default SPACING;

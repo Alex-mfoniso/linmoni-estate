@@ -22,6 +22,7 @@ export default function FilterModal({
   onApply,
   onReset,
   propertyTypes = [],
+  showStatus = true,
 }) {
   const [draft, setDraft] = useState(value);
 
@@ -92,7 +93,7 @@ export default function FilterModal({
               />
             </View>
 
-            <View style={styles.section}>
+            {showStatus ? <View style={styles.section}>
               <Text style={styles.sectionLabel}>Status</Text>
               <View style={styles.chipRow}>
                 {STATUS_OPTIONS.map((option) => {
@@ -110,7 +111,7 @@ export default function FilterModal({
                   );
                 })}
               </View>
-            </View>
+            </View> : null}
 
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Property type</Text>

@@ -1,0 +1,3 @@
+import mongoose from "mongoose";
+export async function connectDatabase(uri, logger) { if ([1, 2].includes(mongoose.connection.readyState)) return mongoose.connection; try { await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 }); logger.info("MongoDB connected."); return mongoose.connection; } catch (error) { logger.error({ err: { name: error.name, message: error.message } }, "MongoDB connection failed."); throw error; } }
+export async function disconnectDatabase(logger) { if (mongoose.connection.readyState !== 0) { await mongoose.disconnect(); logger?.info("MongoDB disconnected."); } }

@@ -11,14 +11,9 @@ import PropertyCard from "../../../components/PropertyCard";
 import ScreenContainer from "../../../components/ScreenContainer";
 import COLORS from "../../../constants/colors";
 import { useAuth } from "../../../contexts/AuthContext";
-import {
-  addFavorite,
-  isPropertyFavorited,
-  removeFavorite,
-} from "../../../services/favoriteService";
-import { createOrGetConversation } from "../../../services/messageService";
-import { getPropertyById } from "../../../services/propertyService";
-import { getPropertyCoverUri } from "../../../utils/propertyMedia";
+import { favouriteApi } from "../../../services/favouriteApi";
+import { conversationApi } from "../../../services/conversationApi";
+import { propertyApi } from "../../../services/propertyApi";
 
 function formatDate(value) {
   if (!value) {
@@ -42,6 +37,9 @@ export default function ClientPropertyDetailsScreen() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [viewerVisible, setViewerVisible] = useState(false);
+  const [similar, setSimilar] = useState([]);
+  const [updatingFavorite, setUpdatingFavorite] = useState(false);
+  const [startingConversation, setStartingConversation] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,13 +49,16 @@ export default function ClientPropertyDetailsScreen() {
       setError("");
 
       try {
-        const [item, favorited] = await Promise.all([
-          getPropertyById(String(params.id || "")),
-          isPropertyFavorited(currentUser?.uid, String(params.id || "")),
+        const propertyId = String(params.id || "");
+        const [result, favorites, related] = await Promise.all([
+          propertyApi.get(propertyId),
+          favouriteApi.list({ page: 1, limit: 50 }),
+          propertyApi.similar(propertyId),
         ]);
         if (active) {
-          setProperty(item);
-          setIsFavorited(favorited);
+          setProperty(result.property);
+          setIsFavorited(favorites.items.some((item) => item.property.id === propertyId));
+          setSimilar(related.items || []);
         }
       } catch (err) {
         if (active) {
@@ -82,51 +83,30 @@ export default function ClientPropertyDetailsScreen() {
   }
 
   async function handleFavoriteToggle() {
-    if (userProfile?.role !== "client" || !currentUser?.uid || !property) {
-      return;
-    }
-
+    if (!property || updatingFavorite) return;
+    const previous = isFavorited;
+    setIsFavorited(!previous);
+    setUpdatingFavorite(true);
     try {
-      if (isFavorited) {
-        await removeFavorite(currentUser.uid, property.id);
-        setIsFavorited(false);
-      } else {
-        await addFavorite({
-          userId: currentUser.uid,
-          userRole: userProfile?.role,
-          propertyId: property.id,
-          propertyTitle: property.title,
-          propertyImage: getPropertyCoverUri(property, {
-            width: 1200,
-            height: 900,
-            crop: "fill",
-          }),
-          propertyPrice: property.price,
-          propertyAddress: property.address,
-        });
-        setIsFavorited(true);
-      }
+      await (previous ? favouriteApi.remove(property.id) : favouriteApi.add(property.id));
     } catch (err) {
+      setIsFavorited(previous);
       Alert.alert("Favorites", err?.message || "Unable to update favorites.");
+    } finally {
+      setUpdatingFavorite(false);
     }
   }
 
   async function handleMessageRealtor() {
-    if (!currentUser?.uid || !property?.createdBy) {
-      return;
-    }
-
+    if (!property || startingConversation) return;
+    setStartingConversation(true);
     try {
-      const conversation = await createOrGetConversation({
-        participantIds: [currentUser.uid, property.createdBy],
-        propertyId: property.id,
-        propertyTitle: property.title,
-        propertyAddress: property.address,
-      });
-
+      const { conversation } = await conversationApi.createForProperty(property.id);
       router.push(`/(client)/messages/${conversation.id}`);
     } catch (err) {
       Alert.alert("Messages", err?.message || "Unable to start this conversation.");
+    } finally {
+      setStartingConversation(false);
     }
   }
 
@@ -174,8 +154,8 @@ export default function ClientPropertyDetailsScreen() {
         <Text style={styles.infoText}>{property.description}</Text>
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
-            <Text style={styles.metaKey}>Address</Text>
-            <Text style={styles.metaValue}>{property.address}</Text>
+            <Text style={styles.metaKey}>Location</Text>
+            <Text style={styles.metaValue}>{property.location || [property.city, property.state].filter(Boolean).join(", ")}</Text>
           </View>
           <View style={styles.metaItem}>
             <Text style={styles.metaKey}>Created</Text>
@@ -188,9 +168,17 @@ export default function ClientPropertyDetailsScreen() {
         </View>
       </View>
 
-      <PrimaryButton title="Book inspection" onPress={handleBookInspection} />
-      <PrimaryButton title="Message realtor" variant="secondary" onPress={handleMessageRealtor} />
+      {property.status !== "active" ? <Text style={styles.unavailableText}>This property is currently {property.status}; new inspections are unavailable.</Text> : null}
+      <PrimaryButton title="Book inspection" onPress={handleBookInspection} disabled={property.status !== "active"} />
+      <PrimaryButton title="Message realtor" variant="secondary" onPress={handleMessageRealtor} loading={startingConversation} />
       <PrimaryButton title="Back to listings" variant="ghost" onPress={() => router.back()} />
+
+      {similar.length ? (
+        <View style={styles.similarSection}>
+          <Text style={styles.infoLabel}>Similar properties</Text>
+          {similar.map((item) => <PropertyCard key={item.id} property={item} onView={() => router.push(`/(client)/properties/${item.id}`)} />)}
+        </View>
+      ) : null}
 
       <FullScreenImageViewer
         visible={viewerVisible}
@@ -247,4 +235,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+  unavailableText: { color: COLORS.warning, fontSize: 13, fontWeight: "700", lineHeight: 19 },
+  similarSection: { gap: 14, marginTop: 8 },
 });

@@ -1,13 +1,3 @@
-// import { Stack } from "expo-router";
-// import { PaperProvider } from "react-native-paper";
-
-// export default function RootLayout() {
-//   return (
-//     <PaperProvider>
-//       <Stack screenOptions={{ headerShown: false }} />
-//     </PaperProvider>
-//   );
-// }
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";

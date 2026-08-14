@@ -14,7 +14,7 @@ export default function RealtorLayout() {
     <ProtectedGroup role={ROLES.REALTOR}>
       <RoleBasedTabBar
         initialRouteName="dashboard"
-        visibleRouteNames={["dashboard", "properties", "messages", "more"]}
+        visibleRouteNames={["dashboard", "properties", "messages", "profile"]}
       >
         <Tabs.Screen
           name="dashboard"
@@ -55,15 +55,7 @@ export default function RealtorLayout() {
         />
         <Tabs.Screen name="add-property" options={{ tabBarButton: () => null }} />
         <Tabs.Screen name="bookings" options={{ tabBarButton: () => null }} />
-        <Tabs.Screen
-          name="more"
-          options={{
-            title: "More",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="ellipsis-horizontal-outline" color={color} size={size} />
-            ),
-          }}
-        />
+        <Tabs.Screen name="more" options={{ tabBarButton: () => null }} />
       </RoleBasedTabBar>
     </ProtectedGroup>
   );

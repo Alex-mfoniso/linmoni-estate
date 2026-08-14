@@ -1,0 +1,24 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { apiQuery, bookingDate, canBookProperty, canCancelBooking, propertyQuery, toggleId } from "../../utils/clientPolicies.mjs";
+
+test("apiQuery omits absent values", () => assert.equal(apiQuery({ page: 1, search: "", city: undefined }), "?page=1"));
+test("apiQuery URL encodes user input", () => assert.equal(apiQuery({ search: "Lekki & Ikoyi" }), "?search=Lekki+%26+Ikoyi"));
+test("apiQuery preserves zero", () => assert.equal(apiQuery({ minPrice: 0 }), "?minPrice=0"));
+test("apiQuery returns an empty suffix", () => assert.equal(apiQuery({}), ""));
+test("property query trims search", () => assert.equal(propertyQuery({ search: "  lagoon " }).search, "lagoon"));
+test("property query omits blank search", () => assert.equal(propertyQuery({ search: " " }).search, undefined));
+test("property query normalizes property type", () => assert.equal(propertyQuery({ filters: { propertyType: "Duplex" } }).propertyType, "duplex"));
+test("property query omits all property type", () => assert.equal(propertyQuery({ filters: { propertyType: "all" } }).propertyType, undefined));
+test("property query maps bedroom minimum", () => assert.equal(propertyQuery({ filters: { bedrooms: "3" } }).minBedrooms, "3"));
+test("property query carries pagination", () => assert.deepEqual(propertyQuery({ page: 3, limit: 20 }).page, 3));
+test("toggleId adds an absent id", () => assert.equal(toggleId(new Set(), "p1").has("p1"), true));
+test("toggleId removes a present id", () => assert.equal(toggleId(new Set(["p1"]), "p1").has("p1"), false));
+test("toggleId does not mutate source", () => { const source = new Set(["p1"]); toggleId(source, "p2"); assert.deepEqual([...source], ["p1"]); });
+test("bookingDate requires both fields", () => assert.equal(bookingDate("2027-01-01", ""), null));
+test("bookingDate rejects impossible input", () => assert.equal(bookingDate("not-a-date", "10:00"), null));
+test("bookingDate creates a valid instant", () => assert.equal(bookingDate("2027-01-01", "10:00")?.toISOString(), "2027-01-01T09:00:00.000Z"));
+test("only active properties are bookable", () => { assert.equal(canBookProperty("active"), true); assert.equal(canBookProperty("reserved"), false); });
+test("pending booking outside cutoff can cancel", () => assert.equal(canCancelBooking("pending", "2027-01-02T00:00:00Z", new Date("2027-01-01T00:00:00Z")), true));
+test("completed booking cannot cancel", () => assert.equal(canCancelBooking("completed", "2027-01-02T00:00:00Z", new Date("2027-01-01T00:00:00Z")), false));
+test("booking within twelve hours cannot cancel", () => assert.equal(canCancelBooking("confirmed", "2027-01-01T10:00:00Z", new Date("2027-01-01T00:00:00Z")), false));

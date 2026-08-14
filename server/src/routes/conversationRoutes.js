@@ -1,0 +1,6 @@
+import { Router } from "express";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { validateRequest } from "../middleware/validateRequest.js";
+import { authWriteLimiter } from "../middleware/rateLimiters.js";
+import { conversationActionSchema, conversationListSchema, conversationMessagesSchema, createConversationSchema, sendMessageSchema } from "../validators/messageValidators.js";
+export function createConversationRouter({ guards, controller }) { const router = Router(); router.use(...guards); router.get("/", validateRequest(conversationListSchema), asyncHandler(controller.list)); router.get("/unread-count", validateRequest(conversationListSchema), asyncHandler(controller.unread)); router.post("/", authWriteLimiter, validateRequest(createConversationSchema), asyncHandler(controller.create)); router.get("/:conversationId/messages", validateRequest(conversationMessagesSchema), asyncHandler(controller.messages)); router.post("/:conversationId/messages", authWriteLimiter, validateRequest(sendMessageSchema), asyncHandler(controller.send)); router.patch("/:conversationId/read", authWriteLimiter, validateRequest(conversationActionSchema), asyncHandler(controller.markRead)); return router; }

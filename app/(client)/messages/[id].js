@@ -1,5 +1,5 @@
-import ChatScreen from "../../../components/ChatScreen";
+import ClientChatView from "../../../components/ClientChatScreen";
 
 export default function ClientChatScreen() {
-  return <ChatScreen routePrefix="/(client)" title="Messages" />;
+  return <ClientChatView />;
 }

@@ -10,6 +10,7 @@ export default function RealtorMessagesScreen() {
       emptyDescription="When a client messages one of your listings, it will appear here."
       routePrefix="/(realtor)"
       role={ROLES.REALTOR}
+      remote={true}
     />
   );
 }

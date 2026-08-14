@@ -1,15 +1,8 @@
-import { createAsyncStorage } from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const MEMORY_STORAGE = new Map();
-let primaryStorage = null;
+let primaryStorage = AsyncStorage;
 let useMemoryOnly = false;
-
-try {
-  primaryStorage = createAsyncStorage("linpal");
-} catch {
-  primaryStorage = null;
-  useMemoryOnly = true;
-}
 
 function getMemoryItem(key) {
   return MEMORY_STORAGE.has(key) ? MEMORY_STORAGE.get(key) : null;

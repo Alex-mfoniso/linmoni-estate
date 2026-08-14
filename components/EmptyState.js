@@ -1,19 +1,22 @@
-import { StyleSheet, Text, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { StyleSheet, Text } from "react-native";
 import COLORS from "../constants/colors";
 import PrimaryButton from "./PrimaryButton";
+import AnimatedStateView from "./AnimatedStateView";
+import RiveIllustration from "./RiveIllustration";
 
 export default function EmptyState({
   title,
   description,
   actionLabel,
   onAction,
+  illustrationLabel,
 }) {
   return (
-    <View style={styles.container}>
-      <View style={styles.iconWrap} accessibilityRole="image" accessibilityLabel={title}>
-        <Ionicons name="folder-open-outline" size={28} color={COLORS.primary} />
-      </View>
+    <AnimatedStateView style={styles.container}>
+      <RiveIllustration
+        accessibilityLabel={illustrationLabel || `An architectural illustration for ${title}`}
+        style={styles.illustration}
+      />
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}
       {actionLabel ? (
@@ -24,7 +27,7 @@ export default function EmptyState({
           containerStyle={styles.button}
         />
       ) : null}
-    </View>
+    </AnimatedStateView>
   );
 }
 
@@ -33,25 +36,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderRadius: 24,
+    backgroundColor: COLORS.inputBackground,
   },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginBottom: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.softPrimary,
+  illustration: {
+    marginBottom: 8,
   },
   title: {
     color: COLORS.text,
     fontSize: 17,
     lineHeight: 23,
-    fontWeight: "900",
+    fontWeight: "700",
     textAlign: "center",
   },
   description: {

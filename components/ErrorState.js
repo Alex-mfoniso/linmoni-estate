@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { StyleSheet, Text } from "react-native";
 import COLORS from "../constants/colors";
 import PrimaryButton from "./PrimaryButton";
+import AnimatedStateView from "./AnimatedStateView";
+import RiveIllustration from "./RiveIllustration";
 
 export default function ErrorState({
   title = "Something went wrong",
@@ -10,10 +11,11 @@ export default function ErrorState({
   onAction,
 }) {
   return (
-    <View style={styles.card}>
-      <View style={styles.iconWrap} accessibilityRole="image" accessibilityLabel={title}>
-        <Ionicons name="alert-circle-outline" size={28} color={COLORS.error} />
-      </View>
+    <AnimatedStateView style={styles.card}>
+      <RiveIllustration
+        accessibilityLabel={`An architectural illustration for ${title}`}
+        style={styles.illustration}
+      />
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}
       {actionLabel ? (
@@ -24,7 +26,7 @@ export default function ErrorState({
           containerStyle={styles.button}
         />
       ) : null}
-    </View>
+    </AnimatedStateView>
   );
 }
 
@@ -34,22 +36,15 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 24,
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(214, 69, 69, 0.18)",
-    backgroundColor: "rgba(214, 69, 69, 0.06)",
+    backgroundColor: COLORS.errorSurface,
   },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(214, 69, 69, 0.12)",
+  illustration: {
+    marginBottom: 2,
   },
   title: {
     color: COLORS.text,
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "700",
     textAlign: "center",
   },
   description: {

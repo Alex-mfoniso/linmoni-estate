@@ -4,28 +4,28 @@ export const SHADOWS = {
   card: {
     ...Platform.select({
       web: {
-        boxShadow: "0px 10px 18px rgba(24, 59, 77, 0.08)",
+        boxShadow: "0px 8px 20px rgba(18, 63, 58, 0.08)",
       },
       default: {
-        shadowColor: "#183B4D",
+        shadowColor: "#123F3A",
         shadowOpacity: 0.08,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 10 },
-        elevation: 5,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 3,
       },
     }),
   },
   raised: {
     ...Platform.select({
       web: {
-        boxShadow: "0px 14px 24px rgba(24, 59, 77, 0.12)",
+        boxShadow: "0px 14px 28px rgba(18, 63, 58, 0.12)",
       },
       default: {
-        shadowColor: "#183B4D",
+        shadowColor: "#123F3A",
         shadowOpacity: 0.12,
-        shadowRadius: 24,
+        shadowRadius: 22,
         shadowOffset: { width: 0, height: 14 },
-        elevation: 8,
+        elevation: 6,
       },
     }),
   },
