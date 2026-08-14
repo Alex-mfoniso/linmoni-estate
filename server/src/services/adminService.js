@@ -25,9 +25,12 @@ export function createAdminService({
       const userRoleCounts = await UserModel.aggregate([
         { $group: { _id: "$role", count: { $sum: 1 } } }
       ]);
+      const pendingApprovals = await UserModel.countDocuments({ status: "pending" });
+
       const users = {
         total: totalUsers,
         active: activeUsers,
+        pendingApprovals,
         breakdown: {
           client: 0,
           realtor: 0,
@@ -355,31 +358,46 @@ export function createAdminService({
       // Hash password securely
       const passwordHash = await hashPassword(payload.password);
 
-      // Create MongoDB Profile
-      const stakeholder = await UserModel.create({
+      // Validate and assign requested role, rejecting admin
+      const allowedRoles = ["realtor", "staff", "stakeholder"];
+      const role = allowedRoles.includes(payload.role) ? payload.role : "stakeholder";
+
+      // Create MongoDB Profile with role-specific optional fields
+      const newUser = await UserModel.create({
         passwordHash,
         email,
         fullName: payload.fullName,
         phone: payload.phone || "",
-        role: "stakeholder",
+        role: role,
         status: "active",
         mustChangePassword: true,
-        emailVerified: true
+        emailVerified: true,
+        // Realtor & Staff optional metadata fields
+        bio: payload.bio || "",
+        agency: payload.agency || "",
+        specialties: payload.specialties || [],
+        serviceAreas: payload.serviceAreas || [],
+        department: payload.department || "",
+        position: payload.position || ""
       });
 
-      // Audit Create Stakeholder
+      // Audit Create Event
       await AuditLogModel.create({
         actorUserId,
         actorFirebaseUid,
-        action: "stakeholder_created",
+        action: `${role}_created`,
         targetType: "user",
-        targetId: stakeholder._id.toString(),
+        targetId: newUser._id.toString(),
         metadata: { createdBy: actorUserId.toString() },
         ipAddress,
         userAgent
       });
 
-      return { success: true, message: "Stakeholder account successfully created.", data: stakeholder };
+      return { 
+        success: true, 
+        message: `${role.charAt(0).toUpperCase() + role.slice(1)} account successfully created.`, 
+        data: newUser 
+      };
     },
 
     async getPlatformSettings() {

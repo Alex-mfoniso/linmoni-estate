@@ -77,8 +77,15 @@ export const createStakeholderSchema = z.object({
   body: z.object({
     email: z.string().trim().toLowerCase().email("Enter a valid email address."),
     fullName: z.string().trim().min(2, "Full name must be at least 2 characters.").max(100),
-    phone: phoneSchema,
-    password: z.string().min(6, "Password must be at least 6 characters.")
+    phone: phoneSchema.optional(),
+    password: z.string().min(6, "Password must be at least 6 characters."),
+    role: z.enum(["realtor", "staff", "stakeholder"]).default("stakeholder"),
+    agency: z.string().trim().max(150).optional(),
+    specialties: z.array(z.string().trim()).optional(),
+    serviceAreas: z.array(z.string().trim()).optional(),
+    department: z.string().trim().max(100).optional(),
+    position: z.string().trim().max(100).optional(),
+    bio: z.string().trim().max(2000).optional()
   }).strict(),
   params: z.object({}).passthrough(),
   query: z.object({}).passthrough()

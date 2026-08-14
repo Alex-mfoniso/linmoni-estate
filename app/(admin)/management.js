@@ -22,7 +22,7 @@ import { useAuth } from "../../contexts/AuthContext";
 const PANELS = [
   { id: "users", label: "Users", icon: "people-outline" },
   { id: "properties", label: "Properties", icon: "business-outline" },
-  { id: "provision", label: "Provision", icon: "person-add-outline" },
+  { id: "provision", label: "Create Account", icon: "person-add-outline" },
   { id: "settings", label: "Settings", icon: "options-outline" }
 ];
 
@@ -35,9 +35,12 @@ export default function AdminManagementScreen() {
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("");
+  const [userStatusFilter, setUserStatusFilter] = useState(""); // Status filter state
   const [userPage, setUserPage] = useState(1);
   const [userHasMore, setUserPageHasMore] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUserDetail, setSelectedUserDetail] = useState(null); // Rich detail storage
+  const [loadingUserDetail, setLoadingUserDetail] = useState(false); // Detail loading state
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [userActionReason, setUserActionReason] = useState("");
 
@@ -50,11 +53,17 @@ export default function AdminManagementScreen() {
   const [propModalVisible, setPropModalVisible] = useState(false);
   const [propActionReason, setPropActionReason] = useState("");
 
-  // Provisioning Form State
-  const [stakeholderEmail, setStakeholderEmail] = useState("");
-  const [stakeholderName, setStakeholderFullName] = useState("");
-  const [stakeholderPhone, setStakeholderPhone] = useState("");
-  const [stakeholderPass, setStakeholderPassword] = useState("");
+  // Dynamic Unified Account Onboarding States
+  const [onboardRole, setOnboardRole] = useState("stakeholder");
+  const [onboardEmail, setOnboardEmail] = useState("");
+  const [onboardFullName, setOnboardFullName] = useState("");
+  const [onboardPhone, setOnboardPhone] = useState("");
+  const [onboardPassword, setOnboardPassword] = useState("");
+  const [onboardAgency, setOnboardAgency] = useState("");
+  const [onboardSpecialties, setOnboardSpecialties] = useState("");
+  const [onboardServiceAreas, setOnboardServiceAreas] = useState("");
+  const [onboardDepartment, setOnboardDepartment] = useState("");
+  const [onboardPosition, setOnboardPosition] = useState("");
 
   // Platform Settings State
   const [platformSettings, setPlatformSettings] = useState({
@@ -72,6 +81,7 @@ export default function AdminManagementScreen() {
       const res = await adminApi.getUsers({
         search: userSearch,
         role: userRoleFilter,
+        status: userStatusFilter, // Status filter integration
         page,
         limit: 15
       });
@@ -90,7 +100,25 @@ export default function AdminManagementScreen() {
     } finally {
       setLoading(false);
     }
-  }, [userSearch, userRoleFilter, userPage]);
+  }, [userSearch, userRoleFilter, userStatusFilter, userPage]);
+
+  // Fetch full details of a clicked user dynamically
+  const handleUserCardPress = async (user) => {
+    setSelectedUser(user);
+    setUserModalVisible(true);
+    setLoadingUserDetail(true);
+    setSelectedUserDetail(null);
+    try {
+      const res = await adminApi.getUserDetail(user._id);
+      if (res.success) {
+        setSelectedUserDetail(res.data);
+      }
+    } catch (err) {
+      console.warn("Failed loading user details:", err);
+    } finally {
+      setLoadingUserDetail(false);
+    }
+  };
 
   const loadProperties = useCallback(async (reset = false) => {
     setLoading(true);
@@ -140,18 +168,72 @@ export default function AdminManagementScreen() {
     }, [activePanel])
   );
 
-  // Trigger filters resets
+  // Trigger filters resets with immediate live reloading
   const handleUserFilterChange = (role) => {
     setUserRoleFilter(role);
     setUserPage(1);
     setUsers([]);
-    // Will be auto-run by useFocusEffect due to activePanel dependency, or let's run immediately
+    setLoading(true);
+    adminApi.getUsers({
+      search: userSearch,
+      role,
+      status: userStatusFilter,
+      page: 1,
+      limit: 15
+    })
+      .then(res => {
+        if (res.success) {
+          setUsers(res.data);
+          setUserPage(2);
+          setUserPageHasMore(res.data.length === 15);
+        }
+      })
+      .catch(err => console.warn("Failed filtering users:", err))
+      .finally(() => setLoading(false));
+  };
+
+  const handleUserStatusFilterChange = (status) => {
+    setUserStatusFilter(status);
+    setUserPage(1);
+    setUsers([]);
+    setLoading(true);
+    adminApi.getUsers({
+      search: userSearch,
+      role: userRoleFilter,
+      status,
+      page: 1,
+      limit: 15
+    })
+      .then(res => {
+        if (res.success) {
+          setUsers(res.data);
+          setUserPage(2);
+          setUserPageHasMore(res.data.length === 15);
+        }
+      })
+      .catch(err => console.warn("Failed filtering users by status:", err))
+      .finally(() => setLoading(false));
   };
 
   const handlePropFilterChange = (status) => {
     setPropStatusFilter(status);
     setPropPage(1);
     setProperties([]);
+    setLoading(true);
+    adminApi.getProperties({
+      search: propSearch,
+      status,
+      page: 1,
+      limit: 15
+    })
+      .then(res => {
+        if (res.success) {
+          setProperties(res.data);
+          setPropPage(2);
+        }
+      })
+      .catch(err => console.warn("Failed filtering properties:", err))
+      .finally(() => setLoading(false));
   };
 
   // User Actions Executions
@@ -245,26 +327,43 @@ export default function AdminManagementScreen() {
     );
   };
 
-  // Provisioning Submission
-  const triggerProvisionStakeholder = async () => {
-    if (!stakeholderEmail || !stakeholderName || !stakeholderPass) {
-      Alert.alert("Missing Fields", "Please populate name, email and password.");
+  // Unified Account Provisioning Submission
+  const triggerProvisionUser = async () => {
+    if (!onboardFullName || !onboardEmail || !onboardPassword) {
+      Alert.alert("Missing Fields", "Please populate full name, email, and password.");
       return;
     }
     setLoading(true);
     try {
-      const res = await adminApi.createStakeholder({
-        email: stakeholderEmail,
-        fullName: stakeholderName,
-        phone: stakeholderPhone,
-        password: stakeholderPass
-      });
-      Alert.alert(res.success ? "Success" : "Error", res.message || "Provisioning completed.");
+      const payload = {
+        role: onboardRole,
+        fullName: onboardFullName,
+        email: onboardEmail,
+        phone: onboardPhone,
+        password: onboardPassword
+      };
+
+      if (onboardRole === "realtor") {
+        payload.agency = onboardAgency;
+        payload.specialties = onboardSpecialties ? onboardSpecialties.split(",").map(s => s.trim()).filter(Boolean) : [];
+        payload.serviceAreas = onboardServiceAreas ? onboardServiceAreas.split(",").map(s => s.trim()).filter(Boolean) : [];
+      } else if (onboardRole === "staff") {
+        payload.department = onboardDepartment;
+        payload.position = onboardPosition;
+      }
+
+      const res = await adminApi.createStakeholder(payload);
+      Alert.alert(res.success ? "Success" : "Error", res.message || "Account created successfully.");
       if (res.success) {
-        setStakeholderEmail("");
-        setStakeholderFullName("");
-        setStakeholderPhone("");
-        setStakeholderPassword("");
+        setOnboardFullName("");
+        setOnboardEmail("");
+        setOnboardPhone("");
+        setOnboardPassword("");
+        setOnboardAgency("");
+        setOnboardSpecialties("");
+        setOnboardServiceAreas("");
+        setOnboardDepartment("");
+        setOnboardPosition("");
       }
     } catch (err) {
       Alert.alert("Error", err.message || "Failed provisioning Account.");
@@ -350,12 +449,13 @@ export default function AdminManagementScreen() {
                   onSubmitEditing={() => loadUsers(true)}
                 />
               </View>
+              {/* Role filter pills */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow}>
                 <TouchableOpacity
                   style={[styles.pill, userRoleFilter === "" && styles.pillActive]}
                   onPress={() => handleUserFilterChange("")}
                 >
-                  <Text style={[styles.pillText, userRoleFilter === "" && styles.pillTextActive]}>All</Text>
+                  <Text style={[styles.pillText, userRoleFilter === "" && styles.pillTextActive]}>ALL ROLES</Text>
                 </TouchableOpacity>
                 {["client", "realtor", "staff", "stakeholder", "admin"].map(role => (
                   <TouchableOpacity
@@ -369,6 +469,30 @@ export default function AdminManagementScreen() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+              {/* Status filter pills */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.pillsRow, { marginTop: 6, borderTopWidth: 1, borderTopColor: COLORS.divider, paddingTop: 6 }]}>
+                <TouchableOpacity
+                  style={[styles.pill, userStatusFilter === "" && styles.pillActive]}
+                  onPress={() => handleUserStatusFilterChange("")}
+                >
+                  <Text style={[styles.pillText, userStatusFilter === "" && styles.pillTextActive]}>ALL STATUSES</Text>
+                </TouchableOpacity>
+                {["active", "pending", "suspended"].map(status => {
+                  let badgeText = status === "active" ? "#2E7D32" : status === "pending" ? "#1565C0" : "#C62828";
+                  let isSel = userStatusFilter === status;
+                  return (
+                    <TouchableOpacity
+                      key={status}
+                      style={[styles.pill, isSel && { backgroundColor: badgeText }]}
+                      onPress={() => handleUserStatusFilterChange(status)}
+                    >
+                      <Text style={[styles.pillText, { color: isSel ? "#fff" : badgeText, fontWeight: "700" }]}>
+                        {status.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
 
             <FlatList
@@ -377,10 +501,7 @@ export default function AdminManagementScreen() {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.userCard}
-                  onPress={() => {
-                    setSelectedUser(item);
-                    setUserModalVisible(true);
-                  }}
+                  onPress={() => handleUserCardPress(item)}
                 >
                   <View style={styles.avatarPlaceholder}>
                     <Text style={styles.avatarText}>{item.fullName.charAt(0).toUpperCase()}</Text>
@@ -392,8 +513,8 @@ export default function AdminManagementScreen() {
                       <View style={[styles.badge, { backgroundColor: COLORS.softPrimary }]}>
                         <Text style={[styles.badgeText, { color: COLORS.primary }]}>{item.role.toUpperCase()}</Text>
                       </View>
-                      <View style={[styles.badge, { backgroundColor: item.status === "active" ? "#E8F5E9" : "#FFEBEE" }]}>
-                        <Text style={[styles.badgeText, { color: item.status === "active" ? "#2E7D32" : "#C62828" }]}>
+                      <View style={[styles.badge, { backgroundColor: item.status === "active" ? "#E8F5E9" : item.status === "pending" ? "#E3F2FD" : "#FFEBEE" }]}>
+                        <Text style={[styles.badgeText, { color: item.status === "active" ? "#2E7D32" : item.status === "pending" ? "#1565C0" : "#C62828" }]}>
                           {item.status.toUpperCase()}
                         </Text>
                       </View>
@@ -497,52 +618,136 @@ export default function AdminManagementScreen() {
 
         {/* provisioning form panel */}
         {activePanel === "provision" && (
-          <ScrollView contentContainerStyle={styles.formContainer}>
-            <Text style={styles.formTitle}>Provision Stakeholder Account</Text>
-            <Text style={styles.formSub}>Create a secure operational profile linked with Firebase Identity.</Text>
+          <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
+            <Text style={styles.formTitle}>Onboard Platform Member</Text>
+            <Text style={styles.formSub}>Register secure, managed operational accounts natively.</Text>
 
+            {/* Role segmented selector - STRICTLY NO ADMIN */}
+            <Text style={styles.inputLabel}>Choose Account Business Role</Text>
+            <View style={styles.roleSelectorBar}>
+              {[
+                { id: "stakeholder", label: "Stakeholder", icon: "briefcase-outline" },
+                { id: "realtor", label: "Realtor", icon: "business-outline" },
+                { id: "staff", label: "Staff Member", icon: "people-outline" }
+              ].map(role => {
+                const isSelected = onboardRole === role.id;
+                return (
+                  <TouchableOpacity
+                    key={role.id}
+                    style={[styles.roleSelectBtn, isSelected && styles.roleSelectBtnActive]}
+                    onPress={() => setOnboardRole(role.id)}
+                  >
+                    <Ionicons name={role.icon} size={15} color={isSelected ? "#fff" : COLORS.mutedText} />
+                    <Text style={[styles.roleSelectText, isSelected && styles.roleSelectTextActive]}>
+                      {role.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Common Onboarding Fields */}
             <Text style={styles.inputLabel}>Full Name</Text>
             <TextInput
               style={styles.formInput}
               placeholder="e.g. Aliko Dangote"
               placeholderTextColor={COLORS.mutedText}
-              value={stakeholderName}
-              onChangeText={setStakeholderFullName}
+              value={onboardFullName}
+              onChangeText={setOnboardFullName}
             />
 
             <Text style={styles.inputLabel}>Email Address</Text>
             <TextInput
               style={styles.formInput}
-              placeholder="stakeholder@linpal.com"
+              placeholder="e.g. dangote@linpal.com"
               placeholderTextColor={COLORS.mutedText}
               keyboardType="email-address"
               autoCapitalize="none"
-              value={stakeholderEmail}
-              onChangeText={setStakeholderEmail}
+              value={onboardEmail}
+              onChangeText={setOnboardEmail}
             />
 
-            <Text style={styles.inputLabel}>Phone (Optional)</Text>
+            <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
             <TextInput
               style={styles.formInput}
-              placeholder="+234 803 123 4567"
+              placeholder="e.g. +234 803 123 4567"
               placeholderTextColor={COLORS.mutedText}
               keyboardType="phone-pad"
-              value={stakeholderPhone}
-              onChangeText={setStakeholderPhone}
+              value={onboardPhone}
+              onChangeText={setOnboardPhone}
             />
 
-            <Text style={styles.inputLabel}>Initial Password</Text>
+            <Text style={styles.inputLabel}>Initial Access Password</Text>
             <TextInput
               style={styles.formInput}
-              placeholder="At least 6 characters"
+              placeholder="Must be at least 6 characters"
               placeholderTextColor={COLORS.mutedText}
               secureTextEntry
-              value={stakeholderPass}
-              onChangeText={setStakeholderPassword}
+              value={onboardPassword}
+              onChangeText={setOnboardPassword}
             />
 
-            <TouchableOpacity style={styles.primaryBtn} onPress={triggerProvisionStakeholder}>
-              <Text style={styles.primaryBtnText}>Provision Secure Profile</Text>
+            {/* Realtor Specific Conditional Fields */}
+            {onboardRole === "realtor" && (
+              <View style={styles.conditionalSection}>
+                <Text style={styles.conditionalTitle}>Realtor Professional Dossier</Text>
+
+                <Text style={styles.inputLabel}>Associated Brokerage / Agency</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g. Redfin Estates Nigeria"
+                  placeholderTextColor={COLORS.mutedText}
+                  value={onboardAgency}
+                  onChangeText={setOnboardAgency}
+                />
+
+                <Text style={styles.inputLabel}>Specialties (comma-separated)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g. Luxury Penthouses, Commercial Sales, Rentals"
+                  placeholderTextColor={COLORS.mutedText}
+                  value={onboardSpecialties}
+                  onChangeText={setOnboardSpecialties}
+                />
+
+                <Text style={styles.inputLabel}>Service Areas (comma-separated)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g. Lekki Phase 1, Ikoyi, Victoria Island"
+                  placeholderTextColor={COLORS.mutedText}
+                  value={onboardServiceAreas}
+                  onChangeText={setOnboardServiceAreas}
+                />
+              </View>
+            )}
+
+            {/* Staff Specific Conditional Fields */}
+            {onboardRole === "staff" && (
+              <View style={styles.conditionalSection}>
+                <Text style={styles.conditionalTitle}>Staff Department Assignment</Text>
+
+                <Text style={styles.inputLabel}>Assigned Department</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g. Escrow Management, Legal, Support"
+                  placeholderTextColor={COLORS.mutedText}
+                  value={onboardDepartment}
+                  onChangeText={setOnboardDepartment}
+                />
+
+                <Text style={styles.inputLabel}>Organizational Title / Position</Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholder="e.g. Senior Settlement Officer"
+                  placeholderTextColor={COLORS.mutedText}
+                  value={onboardPosition}
+                  onChangeText={setOnboardPosition}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.primaryBtn} onPress={triggerProvisionUser}>
+              <Text style={styles.primaryBtnText}>Provision Access Profile</Text>
             </TouchableOpacity>
           </ScrollView>
         )}
@@ -609,54 +814,181 @@ export default function AdminManagementScreen() {
       {selectedUser && (
         <Modal visible={userModalVisible} transparent animationType="slide">
           <View style={styles.modalBg}>
-            <View style={styles.modalBody}>
+            <View style={[styles.modalBody, { maxHeight: "85%" }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Manage {selectedUser.fullName}</Text>
+                <Text style={styles.modalTitle}>User Dossier: {selectedUser.fullName}</Text>
                 <TouchableOpacity onPress={() => setUserModalVisible(false)}>
                   <Ionicons name="close" size={22} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.modalLabel}>Reason for Change (Audit Requirement)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Enter change description..."
-                placeholderTextColor={COLORS.mutedText}
-                value={userActionReason}
-                onChangeText={setUserActionReason}
-              />
-
-              <Text style={styles.modalSectionTitle}>Modify Status</Text>
-              <View style={styles.actionGrid}>
-                {selectedUser.status === "active" ? (
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#FFEBEE" }]} onPress={() => triggerUserStatus("suspended")}>
-                    <Text style={[styles.actionBtnText, { color: "#C62828" }]}>Suspend Profile</Text>
-                  </TouchableOpacity>
+              <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+                {loadingUserDetail ? (
+                  <View style={{ paddingVertical: 30, alignItems: "center" }}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={{ marginTop: 10, fontSize: 12, color: COLORS.mutedText }}>Retrieving user profile file...</Text>
+                  </View>
                 ) : (
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#E8F5E9" }]} onPress={() => triggerUserStatus("active")}>
-                    <Text style={[styles.actionBtnText, { color: "#2E7D32" }]}>Activate / Restore</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#ECEFF1" }]} onPress={() => triggerUserStatus("disabled")}>
-                  <Text style={[styles.actionBtnText, { color: "#37474F" }]}>Disable Profile</Text>
-                </TouchableOpacity>
-              </View>
+                  selectedUserDetail && (
+                    <View style={styles.detailContainer}>
+                      {/* Dossier Header Card */}
+                      <View style={styles.dossierRow}>
+                        <View style={styles.dossierAvatar}>
+                          <Text style={styles.dossierAvatarText}>
+                            {selectedUserDetail.profile?.fullName?.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.dossierName}>{selectedUserDetail.profile?.fullName}</Text>
+                          <Text style={styles.dossierSub}>{selectedUserDetail.profile?.email}</Text>
+                          <View style={{ flexDirection: "row", marginTop: 4 }}>
+                            <View style={[styles.badge, { backgroundColor: COLORS.softPrimary, marginRight: 6 }]}>
+                              <Text style={[styles.badgeText, { color: COLORS.primary }]}>
+                                {selectedUserDetail.profile?.role?.toUpperCase()}
+                              </Text>
+                            </View>
+                            <View style={[
+                              styles.badge, 
+                              { backgroundColor: selectedUserDetail.profile?.status === "active" ? "#E8F5E9" : selectedUserDetail.profile?.status === "pending" ? "#E3F2FD" : "#FFEBEE" }
+                            ]}>
+                              <Text style={[
+                                styles.badgeText, 
+                                { color: selectedUserDetail.profile?.status === "active" ? "#2E7D32" : selectedUserDetail.profile?.status === "pending" ? "#1565C0" : "#C62828" }
+                              ]}>
+                                {selectedUserDetail.profile?.status?.toUpperCase()}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
 
-              <Text style={styles.modalSectionTitle}>Transition Account Role</Text>
-              <View style={styles.actionGrid}>
-                {["client", "realtor", "staff", "stakeholder", "admin"].map(role => (
-                  <TouchableOpacity
-                    key={role}
-                    style={[
-                      styles.roleActionBtn,
-                      selectedUser.role === role && { borderColor: COLORS.primary, borderWidth: 1.5 }
-                    ]}
-                    onPress={() => triggerUserRole(role)}
-                  >
-                    <Text style={styles.roleActionText}>{role.toUpperCase()}</Text>
+                      {/* Contact and Activity Metrics */}
+                      <View style={styles.infoBlock}>
+                        <Text style={styles.infoBlockTitle}>Contact & Registration Files</Text>
+                        <View style={styles.infoGridRow}>
+                          <Text style={styles.infoGridLabel}>Phone Number:</Text>
+                          <Text style={styles.infoGridValue}>{selectedUserDetail.profile?.phone || "Not provided"}</Text>
+                        </View>
+                        <View style={styles.infoGridRow}>
+                          <Text style={styles.infoGridLabel}>Date Onboarded:</Text>
+                          <Text style={styles.infoGridValue}>
+                            {new Date(selectedUserDetail.profile?.createdAt).toLocaleDateString()}
+                          </Text>
+                        </View>
+                        <View style={styles.infoGridRow}>
+                          <Text style={styles.infoGridLabel}>Last Session Active:</Text>
+                          <Text style={styles.infoGridValue}>
+                            {selectedUserDetail.profile?.lastLoginAt 
+                              ? new Date(selectedUserDetail.profile.lastLoginAt).toLocaleString() 
+                              : "No recorded login history"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Realtor Details */}
+                      {selectedUserDetail.profile?.role === "realtor" && (
+                        <View style={[styles.infoBlock, { borderColor: "#2E7D32", borderWidth: 1 }]}>
+                          <Text style={[styles.infoBlockTitle, { color: "#2E7D32" }]}>Realtor Credentials & Scope</Text>
+                          <View style={styles.infoGridRow}>
+                            <Text style={styles.infoGridLabel}>Agency Name:</Text>
+                            <Text style={styles.infoGridValue}>{selectedUserDetail.profile?.agency || "Independent Agency"}</Text>
+                          </View>
+                          <View style={styles.infoGridRow}>
+                            <Text style={styles.infoGridLabel}>Specialties:</Text>
+                            <Text style={styles.infoGridValue}>
+                              {selectedUserDetail.profile?.specialties?.length 
+                                ? selectedUserDetail.profile.specialties.join(", ") 
+                                : "N/A"}
+                            </Text>
+                          </View>
+                          <View style={styles.infoGridRow}>
+                            <Text style={styles.infoGridLabel}>Service Areas:</Text>
+                            <Text style={styles.infoGridValue}>
+                              {selectedUserDetail.profile?.serviceAreas?.length 
+                                ? selectedUserDetail.profile.serviceAreas.join(", ") 
+                                : "N/A"}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Staff Details */}
+                      {selectedUserDetail.profile?.role === "staff" && (
+                        <View style={[styles.infoBlock, { borderColor: "#E65100", borderWidth: 1 }]}>
+                          <Text style={[styles.infoBlockTitle, { color: "#E65100" }]}>Staff Credentials</Text>
+                          <View style={styles.infoGridRow}>
+                            <Text style={styles.infoGridLabel}>Department:</Text>
+                            <Text style={styles.infoGridValue}>{selectedUserDetail.profile?.department || "N/A"}</Text>
+                          </View>
+                          <View style={styles.infoGridRow}>
+                            <Text style={styles.infoGridLabel}>Position Title:</Text>
+                            <Text style={styles.infoGridValue}>{selectedUserDetail.profile?.position || "N/A"}</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Engagement statistics */}
+                      <View style={styles.infoBlock}>
+                        <Text style={styles.infoBlockTitle}>Platform Engagement Dossier</Text>
+                        <View style={styles.infoGridRow}>
+                          <Text style={styles.infoGridLabel}>Total Property Listings:</Text>
+                          <Text style={[styles.infoGridValue, { fontWeight: "700" }]}>
+                            {selectedUserDetail.propertiesCount || 0}
+                          </Text>
+                        </View>
+                        <View style={styles.infoGridRow}>
+                          <Text style={styles.infoGridLabel}>Total Scheduled Inspections:</Text>
+                          <Text style={[styles.infoGridValue, { fontWeight: "700" }]}>
+                            {selectedUserDetail.inspectionsCount || 0}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )
+                )}
+
+                {/* Audit Context */}
+                <Text style={styles.modalLabel}>Auditing Reason (Required for Logs)</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Enter audited action explanation..."
+                  placeholderTextColor={COLORS.mutedText}
+                  value={userActionReason}
+                  onChangeText={setUserActionReason}
+                />
+
+                <Text style={styles.modalSectionTitle}>Modify System Status</Text>
+                <View style={styles.actionGrid}>
+                  {selectedUser.status === "active" ? (
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#FFEBEE" }]} onPress={() => triggerUserStatus("suspended")}>
+                      <Text style={[styles.actionBtnText, { color: "#C62828" }]}>Suspend Profile</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#E8F5E9" }]} onPress={() => triggerUserStatus("active")}>
+                      <Text style={[styles.actionBtnText, { color: "#2E7D32" }]}>Activate & Restore</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#ECEFF1" }]} onPress={() => triggerUserStatus("disabled")}>
+                    <Text style={[styles.actionBtnText, { color: "#37474F" }]}>Disable Profile</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+                </View>
+
+                <Text style={styles.modalSectionTitle}>Account Role Migration</Text>
+                <View style={styles.actionGrid}>
+                  {["client", "realtor", "staff", "stakeholder"].map(role => (
+                    <TouchableOpacity
+                      key={role}
+                      style={[
+                        styles.roleActionBtn,
+                        selectedUser.role === role && { borderColor: COLORS.primary, borderWidth: 1.5 }
+                      ]}
+                      onPress={() => triggerUserRole(role)}
+                    >
+                      <Text style={styles.roleActionText}>{role.toUpperCase()}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -1055,7 +1387,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter"
   },
   roleActionBtn: {
-    width: "31%",
+    width: "23%", // Make them slightly narrower since we have 4 roles now
     height: 34,
     backgroundColor: COLORS.background,
     borderWidth: 1,
@@ -1066,9 +1398,134 @@ const styles = StyleSheet.create({
     marginBottom: 10
   },
   roleActionText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
     color: COLORS.text,
     fontFamily: "Inter"
+  },
+  // Onboarding Form Style Tokens
+  roleSelectorBar: {
+    flexDirection: "row",
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 16
+  },
+  roleSelectBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 4
+  },
+  roleSelectBtnActive: {
+    backgroundColor: COLORS.primary
+  },
+  roleSelectText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.mutedText,
+    fontFamily: "Inter"
+  },
+  roleSelectTextActive: {
+    color: "#fff"
+  },
+  conditionalSection: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    borderRadius: 10,
+    padding: 12,
+    marginVertical: 12
+  },
+  conditionalTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.primary,
+    marginBottom: 10,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    fontFamily: "Inter"
+  },
+  // Rich Dossier Drawer Style Tokens
+  detailContainer: {
+    marginBottom: 16
+  },
+  dossierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 14
+  },
+  dossierAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.softPrimary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12
+  },
+  dossierAvatarText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.primary
+  },
+  dossierName: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: COLORS.text,
+    fontFamily: "Inter"
+  },
+  dossierSub: {
+    fontSize: 11,
+    color: COLORS.mutedText,
+    marginTop: 1,
+    fontFamily: "Inter"
+  },
+  infoBlock: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12
+  },
+  infoBlockTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.mutedText,
+    marginBottom: 8,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    fontFamily: "Inter"
+  },
+  infoGridRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "rgba(0,0,0,0.03)"
+  },
+  infoGridLabel: {
+    fontSize: 11,
+    color: COLORS.mutedText,
+    fontFamily: "Inter"
+  },
+  infoGridValue: {
+    fontSize: 11,
+    color: COLORS.text,
+    fontFamily: "Inter",
+    textAlign: "right",
+    flex: 1,
+    marginLeft: 12
   }
 });
